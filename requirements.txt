@@ -1,0 +1,12 @@
+# Core dependencies for Babbitt Quote Generator
+python-docx==0.8.11
+
+# Optional: Better error handling and logging
+colorama==0.4.6
+
+# Optional: Data validation
+pydantic==2.5.0
+
+# Development tools (optional - remove if you want minimal install)
+# pytest>=7.0.0
+# black>=22.0.0 

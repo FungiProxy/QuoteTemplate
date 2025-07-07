@@ -1,0 +1,227 @@
+{
+  "CPVC_LS6000": {
+    "material_code": "CPVC",
+    "model_family": "LS6000",
+    "base_length": 4.0,
+    "adder_per_foot": 0.0,
+    "adder_per_inch": 50.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "CPVC_LS7000": {
+    "material_code": "CPVC",
+    "model_family": "LS7000",
+    "base_length": 4.0,
+    "adder_per_foot": 0.0,
+    "adder_per_inch": 50.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "H_LS2000": {
+    "material_code": "H",
+    "model_family": "LS2000",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS2100": {
+    "material_code": "H",
+    "model_family": "LS2100",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS6000": {
+    "material_code": "H",
+    "model_family": "LS6000",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS7000": {
+    "material_code": "H",
+    "model_family": "LS7000",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS7000/2": {
+    "material_code": "H",
+    "model_family": "LS7000/2",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS8000": {
+    "material_code": "H",
+    "model_family": "LS8000",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LS8000/2": {
+    "material_code": "H",
+    "model_family": "LS8000/2",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "H_LT9000": {
+    "material_code": "H",
+    "model_family": "LT9000",
+    "base_length": 10.0,
+    "adder_per_foot": 110.0,
+    "adder_per_inch": 9.17,
+    "nonstandard_surcharge": 300.0,
+    "nonstandard_threshold": 72.0
+  },
+  "S_FS10000": {
+    "material_code": "S",
+    "model_family": "FS10000",
+    "base_length": 6.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS2000": {
+    "material_code": "S",
+    "model_family": "LS2000",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS2100": {
+    "material_code": "S",
+    "model_family": "LS2100",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS6000": {
+    "material_code": "S",
+    "model_family": "LS6000",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS7000": {
+    "material_code": "S",
+    "model_family": "LS7000",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS8000": {
+    "material_code": "S",
+    "model_family": "LS8000",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "S_LS8000/2": {
+    "material_code": "S",
+    "model_family": "LS8000/2",
+    "base_length": 10.0,
+    "adder_per_foot": 45.0,
+    "adder_per_inch": 3.75,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "T_LS2000": {
+    "material_code": "T",
+    "model_family": "LS2000",
+    "base_length": 4.0,
+    "adder_per_foot": 0.0,
+    "adder_per_inch": 50.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LS6000": {
+    "material_code": "TS",
+    "model_family": "LS6000",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LS7000": {
+    "material_code": "TS",
+    "model_family": "LS7000",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LS7000/2": {
+    "material_code": "TS",
+    "model_family": "LS7000/2",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LS8000": {
+    "material_code": "TS",
+    "model_family": "LS8000",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LS8000/2": {
+    "material_code": "TS",
+    "model_family": "LS8000/2",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "TS_LT9000": {
+    "material_code": "TS",
+    "model_family": "LT9000",
+    "base_length": 10.0,
+    "adder_per_foot": 60.0,
+    "adder_per_inch": 5.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  },
+  "U_LS2000": {
+    "material_code": "U",
+    "model_family": "LS2000",
+    "base_length": 4.0,
+    "adder_per_foot": 0.0,
+    "adder_per_inch": 40.0,
+    "nonstandard_surcharge": 0.0,
+    "nonstandard_threshold": 0.0
+  }
+}
