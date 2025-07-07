@@ -2,17 +2,18 @@
 -- Simplified design focused on quote generation needs
 -- Created from internal_data.txt and db7.2-1107.sql
 
-PRAGMA foreign_keys = ON;
+-- Temporarily disable foreign keys for table recreation
+PRAGMA foreign_keys = OFF;
 
--- Drop existing tables if they exist
-DROP TABLE IF EXISTS product_models;
-DROP TABLE IF EXISTS materials;
-DROP TABLE IF EXISTS options;
-DROP TABLE IF EXISTS insulators;
-DROP TABLE IF EXISTS voltages;
-DROP TABLE IF EXISTS length_pricing;
-DROP TABLE IF EXISTS quotes;
+-- Drop existing tables if they exist (in reverse dependency order)
 DROP TABLE IF EXISTS quote_items;
+DROP TABLE IF EXISTS quotes;
+DROP TABLE IF EXISTS length_pricing;
+DROP TABLE IF EXISTS voltages;
+DROP TABLE IF EXISTS insulators;
+DROP TABLE IF EXISTS options;
+DROP TABLE IF EXISTS materials;
+DROP TABLE IF EXISTS product_models;
 
 -- 1. PRODUCT MODELS - Base models (LS2000, LS2100, etc.)
 CREATE TABLE product_models (
@@ -24,6 +25,9 @@ CREATE TABLE product_models (
     default_voltage TEXT NOT NULL,
     default_material TEXT NOT NULL,
     default_insulator TEXT NOT NULL,
+    default_process_connection_type TEXT NOT NULL,
+    default_process_connection_material TEXT NOT NULL,
+    default_process_connection_size TEXT NOT NULL,
     max_temp_rating TEXT,
     max_pressure TEXT,
     housing_type TEXT,
@@ -69,7 +73,6 @@ CREATE TABLE insulators (
     description TEXT,
     price_adder REAL DEFAULT 0.0,
     max_temp_rating TEXT,
-    standard_length REAL DEFAULT 4.0,
     compatible_models TEXT, -- JSON array of compatible models
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -135,117 +138,113 @@ CREATE INDEX idx_quotes_number ON quotes(quote_number);
 CREATE INDEX idx_quote_items_quote ON quote_items(quote_id);
 
 -- POPULATE BASE MODELS
-INSERT INTO product_models (model_number, description, base_price, base_length, default_voltage, default_material, default_insulator, max_temp_rating, max_pressure, housing_type, output_type, application_notes) VALUES
-('LS2000', 'LS2000 Level Switch', 425.00, 10.0, '115VAC', 'S', 'U', '180F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '10 Amp SPDT Relay', 'Limited static protection. 24VDC option at no extra charge. 12VDC and 240VAC not available.'),
-('LS2100', 'LS2100 Loop Powered Level Switch', 460.00, 10.0, '24VDC', 'S', 'TEF', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '8mA-16mA Loop Powered', 'Loop powered switch operates between 8mA and 16mA. 16-32 VDC operating range.'),
-('LS6000', 'LS6000 Level Switch', 550.00, 10.0, '115VAC', 'S', 'DEL', '250F', '1500 PSI', 'Explosion Proof Class I, Groups C & D', '5 Amp DPDT Relay', 'Delrin insulators standard for SS probes. 3/4" NPT optional at no charge.'),
-('LS7000', 'LS7000 Level Switch', 680.00, 10.0, '115VAC', 'S', 'TEF', '450F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '2 Form C contacts 5 Amp DPDT', 'On board timer available. 3/4" NPT optional at no charge.'),
-('LS7000/2', 'LS7000/2 Dual Point Level Switch', 770.00, 10.0, '115VAC', 'H', 'TEF', '450F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '2 Form C contacts 5 Amp DPDT', 'Auto fill/empty only. Must use Halar probe in conductive liquids.'),
-('LS8000', 'LS8000 Remote Mounted Level Switch', 715.00, 10.0, '115VAC', 'S', 'TEF', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '5 Amp DPDT Relay', 'Remote mounted system with transmitter/receiver. Multiple sensitivities available.'),
-('LS8000/2', 'LS8000/2 Remote Mounted Dual Point Switch', 850.00, 10.0, '115VAC', 'H', 'TEF', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '10 Amp SPDT Relay', 'Remote dual point system. Extra transmitter available.'),
-('LT9000', 'LT9000 Level Transmitter', 855.00, 10.0, '115VAC', 'H', 'TEF', '350F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '4-20mA', 'For electrically conductive liquids. Must be grounded to fluid.'),
-('FS10000', 'FS10000 Flow Switch', 1980.00, 6.0, '115VAC', 'S', 'TEF', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '5 Amp DPDT Relay', 'Flow/No-flow detection. Max 24" probe length recommended.'),
-('LS7500', 'LS7500 Presence/Absence Switch', 800.00, 10.0, '115VAC', 'S', 'DEL', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3515. Flange mounted.'),
-('LS8500', 'LS8500 Presence/Absence Switch', 900.00, 10.0, '115VAC', 'S', 'DEL', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3545. Flange mounted.');
+INSERT INTO product_models (model_number, description, base_price, base_length, default_voltage, default_material, default_insulator, default_process_connection_type, default_process_connection_material, default_process_connection_size, max_temp_rating, max_pressure, housing_type, output_type, application_notes) VALUES
+('LS2000', 'LS2000 Level Switch', 455.00, 10.0, '115VAC', 'S', 'U', 'NPT', 'SS', '3/4"', '180F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '10 Amp SPDT Relay', 'Limited static protection. 24VDC option at no extra charge. 12VDC and 240VAC not available.'),
+('LS2100', 'LS2100 Loop Powered Level Switch', 480.00, 10.0, '24VDC', 'S', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '8mA-16mA Loop Powered', 'Loop powered switch operates between 8mA and 16mA. 16-32 VDC operating range.'),
+('LS6000', 'LS6000 Level Switch', 580.00, 10.0, '115VAC', 'S', 'DEL', 'NPT', 'SS', '1"', '250F', '1500 PSI', 'Explosion Proof Class I, Groups C & D', '5 Amp DPDT Relay', 'Delrin insulators standard for SS probes. 3/4" NPT optional at no charge.'),
+('LS7000', 'LS7000 Level Switch', 715.00, 10.0, '115VAC', 'S', 'TEF', 'NPT', 'SS', '1"', '450F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '2 Form C contacts 5 Amp DPDT', 'On board timer available. 3/4" NPT optional at no charge.'),
+('LS7000/2', 'LS7000/2 Dual Point Level Switch', 800.00, 10.0, '115VAC', 'H', 'TEF', 'NPT', 'SS', '1"', '450F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '2 Form C contacts 5 Amp DPDT', 'Auto fill/empty only. Must use Halar probe in conductive liquids.'),
+('LS8000', 'LS8000 Remote Mounted Level Switch', 750.00, 10.0, '115VAC', 'S', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '5 Amp DPDT Relay', 'Remote mounted system with transmitter/receiver. Multiple sensitivities available.'),
+('LS8000/2', 'LS8000/2 Remote Mounted Dual Point Switch', 900.00, 10.0, '115VAC', 'H', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '10 Amp SPDT Relay', 'Remote dual point system. Extra transmitter available.'),
+('LT9000', 'LT9000 Level Transmitter', 950.00, 10.0, '115VAC', 'H', 'TEF', 'NPT', 'SS', '1"', '350F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '4-20mA', 'For electrically conductive liquids. Must be grounded to fluid.'),
+('FS10000', 'FS10000 Flow Switch', 1920.00, 6.0, '115VAC', 'S', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '5 Amp DPDT Relay', 'Flow/No-flow detection. Max 24" probe length recommended.'),
+('LS7500', 'LS7500 Presence/Absence Switch', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3515. Flange mounted.'),
+('LS8500', 'LS8500 Presence/Absence Switch', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3545. Flange mounted.');
 
 -- POPULATE MATERIALS
 INSERT INTO materials (code, name, description, base_price_adder, length_adder_per_foot, length_adder_per_inch, nonstandard_length_surcharge, max_length_with_coating, compatible_models) VALUES
-('S', '316 Stainless Steel', '316 Stainless Steel Probe', 0.00, 45.00, 3.75, 0.00, 999.0, '["LS2000","LS2100","LS6000","LS7000","LS8000","FS10000","LS7500","LS8500"]'),
-('H', 'Halar Coated', 'Halar Coated Probe', 110.00, 110.00, 9.17, 300.00, 72.0, '["LS2000","LS2100","LS6000","LS7000","LS7000/2","LS8000","LS8000/2","LT9000"]'),
-('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 20.00, 40.00, 40.00, 0.00, 999.0, '["LS2000"]'),
-('T', 'Teflon Blind End', 'Teflon Blind End Probe', 60.00, 50.00, 50.00, 0.00, 999.0, '["LS2000","LS2100"]'),
-('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 60.00, 5.00, 0.00, 999.0, '["LS2000","LS2100","LS6000","LS7000","LS7000/2","LS8000","LS8000/2","LT9000"]'),
-('C', 'Ceramic', 'Ceramic Probe', 150.00, 70.00, 5.83, 0.00, 999.0, '["LS6000","LS7000"]'),
-('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 50.00, 50.00, 0.00, 999.0, '["LS6000","LS7000"]');
+('S', '316 Stainless Steel', '316 Stainless Steel Probe', 0.00, 45.00, 0.00, 0.00, 999.0, 'ALL'),
+('H', 'Halar Coated', 'Halar Coated Probe', 110.00, 110.00, 0.00, 300.00, 999.0, 'ALL'),
+('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 20.00, 0.00, 40.00, 0.00, 999.0, 'ALL'),
+('T', 'Teflon Blind End', 'Teflon Blind End Probe', 60.00, 0.00, 50.00, 0.00, 999.0, 'ALL'),
+('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 60.00, 0.00, 0.00, 999.0, 'ALL'),
+('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 0.00, 50.00, 0.00, 999.0, 'ALL'),
+('C', 'Cable', 'Cable Probe', 80.00, 45.00, 0.00, 0.00, 999.0, 'ALL'),
+('A', 'Alloy 20', 'Alloy 20 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('HC', 'Hastelloy-C-276', 'Hastelloy-C-276 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('HB', 'Hastelloy-B', 'Hastelloy-B Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('TT', 'Titanium', 'Titanium Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL');
 
 -- POPULATE OPTIONS
-INSERT INTO options (code, name, description, price, price_type, category, compatible_models) VALUES
-('XSP', 'Extra Static Protection', 'Extra Static Protection for plastic pellets/resins', 30.00, 'fixed', 'protection', '["LS2000"]'),
-('VR', 'Vibration Resistant', 'Vibration Resistant Construction', 75.00, 'fixed', 'protection', '["LS2000","LS2100","LS6000","LS7000","LS8000"]'),
-('BP', 'Bent Probe', 'Bent Probe Configuration', 50.00, 'fixed', 'probe', '["LS2000","LS2100","LS6000","LS7000","LS8000","LT9000"]'),
-('CP', 'Cable Probe', 'Cable Probe Configuration', 80.00, 'fixed', 'probe', '["LS2000","LS2100","LS6000","LS7000","LS8000","LT9000"]'),
-('SST', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', '["LS2000","LS2100","LS6000","LS7000","LS8000","LS8000/2","LT9000"]'),
-('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', '["LS2000","LS6000"]'),
-('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', '["LS6000","LS7000"]'),
-('SSH', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', '["LS7000"]'),
-('3QD', '3/4" Diameter Probe', '3/4" Diameter Probe x 10"', 175.00, 'fixed', 'probe', '["LS6000","LS7000"]');
+INSERT INTO options (code, name, description, price, price_type, category, compatible_models, exclusions) VALUES
+('XSP', 'Extra Static Protection', 'Extra Static Protection for plastic pellets/resins', 30.00, 'fixed', 'protection', 'ALL', NULL),
+('VR', 'Vibration Resistant', 'Vibration Resistant Construction', 50.00, 'fixed', 'protection', 'ALL', NULL),
+('BP', 'Bent Probe', 'Bent Probe Configuration', 50.00, 'fixed', 'probe', 'ALL', NULL),
+('SST', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', 'ALL', NULL),
+('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
+('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
+('SSH', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
+('3QD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
 
 -- POPULATE INSULATORS
-INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, standard_length, compatible_models) VALUES
-('U', 'UHMWPE', 'Ultra High Molecular Weight Polyethylene', 0.00, '180F', 4.0, '["LS2000"]'),
-('TEF', 'Teflon', 'Teflon Insulator', 40.00, '450F', 4.0, '["LS2100","LS6000","LS7000","LS7000/2","LS8000","LS8000/2","LT9000"]'),
-('DEL', 'Delrin', 'Delrin Insulator', 0.00, '250F', 4.0, '["LS6000","LS7500","LS8500"]'),
-('PEEK', 'PEEK', 'PEEK Insulator', 120.00, '550F', 4.0, '["LS6000","LS7000"]'),
-('CER', 'Ceramic', 'Ceramic Insulator', 200.00, '800F', 4.0, '["LS6000","LS7000"]');
+INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, compatible_models) VALUES
+('U', 'UHMWPE', 'Ultra High Molecular Weight Polyethylene', 0.00, '180F', 'ALL'),
+('TEF', 'Teflon', 'Teflon Insulator', 40.00, '450F', 'ALL'),
+('DEL', 'Delrin', 'Delrin Insulator', 0.00, '250F', 'ALL'),
+('PEEK', 'PEEK', 'PEEK Insulator', 120.00, '550F', 'ALL'),
+('CER', 'Ceramic', 'Ceramic Insulator', 200.00, '800F', 'ALL');
 
--- POPULATE VOLTAGES
+-- POPULATE VOLTAGES - Simplified to 4 core voltages
 INSERT INTO voltages (model_family, voltage, price_adder, is_default) VALUES
-('LS2000', '115VAC', 0.00, 1),
-('LS2000', '24VDC', 0.00, 0),
-('LS2100', '24VDC', 0.00, 1),
-('LS6000', '115VAC', 0.00, 1),
-('LS6000', '12VDC', 0.00, 0),
-('LS6000', '24VDC', 0.00, 0),
-('LS6000', '240VAC', 0.00, 0),
-('LS7000', '115VAC', 0.00, 1),
-('LS7000', '12VDC', 0.00, 0),
-('LS7000', '24VDC', 0.00, 0),
-('LS7000', '240VAC', 0.00, 0),
-('LS7000/2', '115VAC', 0.00, 1),
-('LS7000/2', '12VDC', 0.00, 0),
-('LS7000/2', '24VDC', 0.00, 0),
-('LS7000/2', '240VAC', 0.00, 0),
-('LS8000', '115VAC', 0.00, 1),
-('LS8000', '12VDC', 0.00, 0),
-('LS8000', '24VDC', 0.00, 0),
-('LS8000', '240VAC', 0.00, 0),
-('LS8000/2', '115VAC', 0.00, 1),
-('LS8000/2', '12VDC', 0.00, 0),
-('LS8000/2', '24VDC', 0.00, 0),
-('LS8000/2', '240VAC', 0.00, 0),
-('LT9000', '115VAC', 0.00, 1),
-('LT9000', '24VDC', 0.00, 0),
-('LT9000', '230VAC', 0.00, 0),
-('FS10000', '115VAC', 0.00, 1),
-('FS10000', '12VDC', 0.00, 0),
-('FS10000', '24VDC', 0.00, 0),
-('FS10000', '240VAC', 0.00, 0),
-('LS7500', '115VAC', 0.00, 1),
-('LS7500', '12VDC', 0.00, 0),
-('LS7500', '24VDC', 0.00, 0),
-('LS7500', '220VAC', 0.00, 0),
-('LS8500', '115VAC', 0.00, 1),
-('LS8500', '12VDC', 0.00, 0),
-('LS8500', '24VDC', 0.00, 0),
-('LS8500', '220VAC', 0.00, 0);
+('ALL', '115VAC', 0.00, 1),
+('ALL', '24VDC', 0.00, 0),
+('ALL', '230VAC', 0.00, 0),
+('ALL', '12VDC', 0.00, 0);
 
 -- POPULATE LENGTH PRICING
 INSERT INTO length_pricing (material_code, model_family, base_length, adder_per_foot, adder_per_inch, nonstandard_surcharge, nonstandard_threshold) VALUES
-('S', 'LS2000', 10.0, 45.00, 3.75, 0.00, 0.0),
-('H', 'LS2000', 10.0, 110.00, 9.17, 300.00, 72.0),
+('S', 'LS2000', 10.0, 45.00, 0.00, 0.00, 0.0),
+('H', 'LS2000', 10.0, 110.00, 0.00, 300.00, 96.0),
 ('U', 'LS2000', 4.0, 0.00, 40.00, 0.00, 0.0),
 ('T', 'LS2000', 4.0, 0.00, 50.00, 0.00, 0.0),
-('S', 'LS2100', 10.0, 45.00, 3.75, 0.00, 0.0),
-('H', 'LS2100', 10.0, 110.00, 9.17, 300.00, 72.0),
-('S', 'LS6000', 10.0, 45.00, 3.75, 0.00, 0.0),
-('H', 'LS6000', 10.0, 110.00, 9.17, 300.00, 72.0),
-('TS', 'LS6000', 10.0, 60.00, 5.00, 0.00, 0.0),
+('S', 'LS2100', 10.0, 45.00, 0.00, 0.00, 0.0),
+('H', 'LS2100', 10.0, 110.00, 0.00, 300.00, 96.0),
+('S', 'LS6000', 10.0, 45.00, 0.00, 0.00, 0.0),
+('H', 'LS6000', 10.0, 110.00, 0.00, 300.00, 96.0),
+('TS', 'LS6000', 10.0, 60.00, 0.00, 0.00, 0.0),
 ('CPVC', 'LS6000', 4.0, 0.00, 50.00, 0.00, 0.0),
-('S', 'LS7000', 10.0, 45.00, 3.75, 0.00, 0.0),
-('H', 'LS7000', 10.0, 110.00, 9.17, 300.00, 72.0),
-('TS', 'LS7000', 10.0, 60.00, 5.00, 0.00, 0.0),
+('S', 'LS7000', 10.0, 45.00, 0.00, 0.00, 0.0),
+('H', 'LS7000', 10.0, 110.00, 0.00, 300.00, 96.0),
+('TS', 'LS7000', 10.0, 60.00, 0.00, 0.00, 0.0),
 ('CPVC', 'LS7000', 4.0, 0.00, 50.00, 0.00, 0.0),
-('H', 'LS7000/2', 10.0, 110.00, 9.17, 300.00, 72.0),
-('TS', 'LS7000/2', 10.0, 60.00, 5.00, 0.00, 0.0),
-('S', 'LS8000', 10.0, 45.00, 3.75, 0.00, 0.0),
-('H', 'LS8000', 10.0, 110.00, 9.17, 300.00, 72.0),
-('TS', 'LS8000', 10.0, 60.00, 5.00, 0.00, 0.0),
-('H', 'LS8000/2', 10.0, 110.00, 9.17, 300.00, 72.0),
-('S', 'LS8000/2', 10.0, 45.00, 3.75, 0.00, 0.0),
-('TS', 'LS8000/2', 10.0, 60.00, 5.00, 0.00, 0.0),
-('H', 'LT9000', 10.0, 110.00, 9.17, 300.00, 72.0),
-('TS', 'LT9000', 10.0, 60.00, 5.00, 0.00, 0.0),
-('S', 'FS10000', 6.0, 45.00, 3.75, 0.00, 0.0);
+('H', 'LS7000/2', 10.0, 110.00, 0.00, 300.00, 96.0),
+('TS', 'LS7000/2', 10.0, 60.00, 0.00, 0.00, 0.0),
+('S', 'LS8000', 10.0, 45.00, 0.00, 0.00, 0.0),
+('H', 'LS8000', 10.0, 110.00, 0.00, 300.00, 96.0),
+('TS', 'LS8000', 10.0, 60.00, 0.00, 0.00, 0.0),
+('H', 'LS8000/2', 10.0, 110.00, 0.00, 300.00, 96.0),
+('S', 'LS8000/2', 10.0, 45.00, 0.00, 0.00, 0.0),
+('TS', 'LS8000/2', 10.0, 60.00, 0.00, 0.00, 0.0),
+('H', 'LT9000', 10.0, 110.00, 0.00, 300.00, 96.0),
+('TS', 'LT9000', 10.0, 60.00, 0.00, 0.00, 0.0),
+('S', 'FS10000', 6.0, 45.00, 0.00, 0.00, 0.0),
+-- Cable Material
+('C', 'LS2000', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS2100', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS6000', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS7000', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS7000/2', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS8000', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LS8000/2', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'LT9000', 12.0, 45.00, 0.00, 0.00, 0.0),
+('C', 'FS10000', 12.0, 45.00, 0.00, 0.00, 0.0),
+-- Exotic Materials (zeroed out)
+('A', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HC', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HC', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HC', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HC', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HB', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HB', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HB', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('HB', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TT', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TT', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TT', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TT', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0);
 
 -- Create a view for easy price calculations
 CREATE VIEW price_calculator AS
@@ -266,4 +265,7 @@ SELECT
     i.max_temp_rating as insulator_temp_rating
 FROM product_models pm
 LEFT JOIN materials m ON pm.default_material = m.code
-LEFT JOIN insulators i ON pm.default_insulator = i.code; 
+LEFT JOIN insulators i ON pm.default_insulator = i.code;
+
+-- Re-enable foreign key constraints
+PRAGMA foreign_keys = ON; 
