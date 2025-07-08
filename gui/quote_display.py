@@ -372,11 +372,11 @@ class QuoteDisplayWidget:
         
         # Update status
         if errors:
-            self.validation_status_label.config(text="Status: Errors found", fg="red")
+            self.validation_status_label.config(text="Status: Errors found")
         elif warnings:
-            self.validation_status_label.config(text="Status: Warnings found", fg="orange")
+            self.validation_status_label.config(text="Status: Warnings found")
         else:
-            self.validation_status_label.config(text="Status: Valid", fg="green")
+            self.validation_status_label.config(text="Status: Valid")
         
         # Update errors
         self.errors_listbox.delete(0, tk.END)
@@ -430,6 +430,6 @@ class QuoteDisplayWidget:
         self.notes_text.config(state=tk.DISABLED)
         
         # Clear validation
-        self.validation_status_label.config(text="Status: Not validated", fg="black")
+        self.validation_status_label.config(text="Status: Not validated")
         self.errors_listbox.delete(0, tk.END)
         self.warnings_listbox.delete(0, tk.END) 

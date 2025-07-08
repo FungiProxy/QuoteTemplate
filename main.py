@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 """
 Babbitt Quote Generator - Main Application
-Simple quote generator for Babbitt International products
+Professional quote generator for Babbitt International products
 """
 
 import sys
 import os
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-from typing import Dict, Any
 
 # Add the current directory to the path so we can import our modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from gui.main_window import MainWindow
+    ADVANCED_GUI_AVAILABLE = True
+except ImportError as e:
+    print(f"Advanced GUI not available: {e}")
+    print("Falling back to basic interface")
+    ADVANCED_GUI_AVAILABLE = False
+
+# Import components needed for both interfaces
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from typing import Dict, Any
 
 try:
     from database.db_manager import DatabaseManager
@@ -524,8 +534,15 @@ def main():
         print("   The application will run in demo mode.")
     
     try:
-        app = BabbittQuoteGenerator()
-        app.run()
+        # Use advanced GUI if available, otherwise fall back to basic interface
+        if ADVANCED_GUI_AVAILABLE:
+            print("Using advanced professional GUI interface...")
+            app = MainWindow()
+            app.run()
+        else:
+            print("Using basic interface...")
+            app = BabbittQuoteGenerator()
+            app.run()
     except KeyboardInterrupt:
         print("\nApplication closed by user")
     except Exception as e:
