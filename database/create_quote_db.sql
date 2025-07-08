@@ -148,8 +148,8 @@ INSERT INTO product_models (model_number, description, base_price, base_length, 
 ('LS8000/2', 'LS8000/2 Remote Mounted Dual Point Switch', 900.00, 10.0, '115VAC', 'H', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '10 Amp SPDT Relay', 'Remote dual point system. Extra transmitter available.'),
 ('LT9000', 'LT9000 Level Transmitter', 950.00, 10.0, '115VAC', 'H', 'TEF', 'NPT', 'SS', '1"', '350F', '1500 PSI', 'NEMA 7, D; NEMA 9, E, F, G', '4-20mA', 'For electrically conductive liquids. Must be grounded to fluid.'),
 ('FS10000', 'FS10000 Flow Switch', 1920.00, 6.0, '115VAC', 'S', 'TEF', 'NPT', 'SS', '3/4"', '450F', '300 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '5 Amp DPDT Relay', 'Flow/No-flow detection. Max 24" probe length recommended.'),
-('LS7500', 'LS7500 Presence/Absence Switch', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3515. Flange mounted.'),
-('LS8500', 'LS8500 Presence/Absence Switch', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3545. Flange mounted.');
+('LS7500FR', 'LS7500 Presence/Absence', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3515. Flange mounted.'),
+('LS8500FR', 'LS8500 Presence/Absence', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3545. Flange mounted.');
 
 -- POPULATE MATERIALS
 INSERT INTO materials (code, name, description, base_price_adder, length_adder_per_foot, length_adder_per_inch, nonstandard_length_surcharge, max_length_with_coating, compatible_models) VALUES
@@ -160,10 +160,10 @@ INSERT INTO materials (code, name, description, base_price_adder, length_adder_p
 ('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 60.00, 0.00, 0.00, 999.0, 'ALL'),
 ('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 0.00, 50.00, 0.00, 999.0, 'ALL'),
 ('C', 'Cable', 'Cable Probe', 80.00, 45.00, 0.00, 0.00, 999.0, 'ALL'),
-('A', 'Alloy 20', 'Alloy 20 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('A20', 'Alloy 20', 'Alloy 20 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
 ('HC', 'Hastelloy-C-276', 'Hastelloy-C-276 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
 ('HB', 'Hastelloy-B', 'Hastelloy-B Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
-('TT', 'Titanium', 'Titanium Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL');
+('TIT', 'Titanium', 'Titanium Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL');
 
 -- POPULATE OPTIONS
 INSERT INTO options (code, name, description, price, price_type, category, compatible_models, exclusions) VALUES
@@ -229,10 +229,10 @@ INSERT INTO length_pricing (material_code, model_family, base_length, adder_per_
 ('C', 'LT9000', 12.0, 45.00, 0.00, 0.00, 0.0),
 ('C', 'FS10000', 12.0, 45.00, 0.00, 0.00, 0.0),
 -- Exotic Materials (zeroed out)
-('A', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('A', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('A', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('A', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A20', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A20', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A20', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('A20', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('HC', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('HC', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('HC', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
@@ -241,10 +241,10 @@ INSERT INTO length_pricing (material_code, model_family, base_length, adder_per_
 ('HB', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('HB', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('HB', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('TT', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('TT', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('TT', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
-('TT', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0);
+('TIT', 'LS6000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TIT', 'LS7000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TIT', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
+('TIT', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0);
 
 -- Create a view for easy price calculations
 CREATE VIEW price_calculator AS
