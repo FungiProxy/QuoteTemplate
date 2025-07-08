@@ -12,7 +12,7 @@
 ### **2. Working Features (100% Functional)**
 - ✅ **Part Number Parsing**: Successfully parses complex part numbers like `LS2000-115VAC-S-10"-XSP-VR-8"TEFINS`
 - ✅ **Material Code Recognition**: Handles S, H, C, TS, U, T, CPVC material codes
-- ✅ **Option Processing**: Recognizes XSP, VR, BP, SST option codes
+- ✅ **Option Processing**: Recognizes XSP, VR, SSTAG option codes and XDEG bent probe format
 - ✅ **Insulator Parsing**: Parses complex insulator specifications (TEF, UHMWPE, DEL, PEEK, CER)
 - ✅ **Connection Overrides**: Handles NPT and flange connection specifications
 - ✅ **Model Defaults**: Automatic population of defaults for LS2000, LS2100 models

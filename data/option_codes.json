@@ -1,32 +1,24 @@
 {
-  "3QD": {
+  "3/4\"OD": {
     "name": "3/4\" Diameter Probe",
-    "description": "3/4\" Diameter Probe x 10\"",
+    "description": "3/4\" Diameter Probe (175 base + 175/foot)",
     "price": 175.0,
-    "price_type": "fixed",
-    "category": "probe",
-    "compatible_models": [
-      "LS6000",
-      "LS7000"
-    ],
-    "exclusions": []
-  },
-  "BP": {
-    "name": "Bent Probe",
-    "description": "Bent Probe Configuration",
-    "price": 50.0,
-    "price_type": "fixed",
+    "price_type": "base_plus_per_foot",
     "category": "probe",
     "compatible_models": [
       "LS2000",
       "LS2100",
       "LS6000",
       "LS7000",
+      "LS7000/2",
       "LS8000",
-      "LT9000"
+      "LS8000/2",
+      "LT9000",
+      "FS10000"
     ],
     "exclusions": []
   },
+
   "CP": {
     "name": "Cable Probe",
     "description": "Cable Probe Configuration",
@@ -43,19 +35,8 @@
     ],
     "exclusions": []
   },
-  "PEEK": {
-    "name": "PEEK Insulator",
-    "description": "PEEK Insulator (550F rating)",
-    "price": 120.0,
-    "price_type": "fixed",
-    "category": "insulator",
-    "compatible_models": [
-      "LS6000",
-      "LS7000"
-    ],
-    "exclusions": []
-  },
-  "SSH": {
+
+  "SSHSE": {
     "name": "Stainless Steel Housing",
     "description": "Stainless Steel Housing (NEMA 4X)",
     "price": 285.0,
@@ -66,7 +47,26 @@
     ],
     "exclusions": []
   },
-  "SST": {
+  "VRHSE": {
+    "name": "Epoxy Housing",
+    "description": "Epoxy Housing (Chemical Resistant)",
+    "price": 150.0,
+    "price_type": "fixed",
+    "category": "housing",
+    "compatible_models": [
+      "LS2000",
+      "LS2100",
+      "LS6000",
+      "LS7000",
+      "LS7000/2",
+      "LS8000",
+      "LS8000/2",
+      "LT9000",
+      "FS10000"
+    ],
+    "exclusions": []
+  },
+  "SSTAG": {
     "name": "Stainless Steel Tag",
     "description": "Stainless Steel Identification Tag",
     "price": 30.0,
@@ -83,22 +83,11 @@
     ],
     "exclusions": []
   },
-  "TEF": {
-    "name": "Teflon Insulator",
-    "description": "Teflon Insulator (instead of standard)",
-    "price": 40.0,
-    "price_type": "fixed",
-    "category": "insulator",
-    "compatible_models": [
-      "LS2000",
-      "LS6000"
-    ],
-    "exclusions": []
-  },
+
   "VR": {
     "name": "Vibration Resistant",
     "description": "Vibration Resistant Construction",
-    "price": 75.0,
+    "price": 50.0,
     "price_type": "fixed",
     "category": "protection",
     "compatible_models": [

@@ -34,8 +34,9 @@ class PartNumberValidator:
         self.valid_materials = {'S', 'H', 'U', 'T', 'TS', 'C', 'CPVC'}
         
         # Valid option codes (BP removed - now handled as degree format)
+        # TEF and PEEK removed - handled as insulators via XINS format
         self.valid_options = {
-            'XSP', 'VR', 'CP', 'SST', 'TEF', 'PEEK', 'SSH', '3QD'
+            'XSP', 'VR', 'CP', 'SSTAG', 'SSHSE', 'VRHSE', '3/4"OD'
         }
         
         # Valid insulator codes
@@ -190,8 +191,8 @@ class CompatibilityChecker:
         # Model-specific option restrictions
         self.model_option_restrictions = {
             'XSP': ['LS2000'],  # Extra static protection only for LS2000
-            'SSH': ['LS7000'],  # Stainless steel housing only for LS7000
-            '3QD': ['LS6000', 'LS7000'],  # 3/4" diameter probe
+            'SSHSE': ['LS7000'],  # Stainless steel housing only for LS7000
+            '3/4"OD': ['ALL'],  # 3/4" diameter probe available for all models
         }
     
     def check_model_material_compatibility(self, model: str, material: str) -> List[str]:

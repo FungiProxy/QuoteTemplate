@@ -14,7 +14,7 @@
   },
   "LS2000": {
     "description": "LS2000 Level Switch",
-    "base_price": 425.0,
+    "base_price": 455.0,
     "base_length": 10.0,
     "default_voltage": "115VAC",
     "default_material": "S",

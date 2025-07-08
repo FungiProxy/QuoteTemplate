@@ -23,7 +23,7 @@ INSERT OR IGNORE INTO quotes (quote_number, customer_name, customer_email, statu
 INSERT OR IGNORE INTO quote_items (quote_id, part_number, description, quantity, unit_price, total_price, created_at) VALUES
 (1, 'LS2000-115VAC-S-10"', 'LS2000 Level Switch, 115VAC, Stainless Steel, 10" probe', 1, 425.00, 425.00, '2024-01-15 10:30:00'),
 (2, 'LS2000-115VAC-S-10"-XSP-VR-8"TEFINS', 'LS2000 Level Switch with Extra Static Protection, Vibration Resistant, 8" Teflon Insulator', 1, 570.00, 570.00, '2024-01-16 14:20:00'),
-(3, 'LS7000-115VAC-H-18"-CP-SST', 'LS7000 Level Switch, 115VAC, Halar Coated, 18" probe, Cable Probe, Stainless Steel Tag', 2, 642.50, 1285.00, '2024-01-17 09:15:00');
+(3, 'LS7000-115VAC-H-18"-CP-SSTAG', 'LS7000 Level Switch, 115VAC, Halar Coated, 18" probe, Cable Probe, Stainless Steel Tag', 2, 642.50, 1285.00, '2024-01-17 09:15:00');
 
 -- Test part numbers that should work
 -- LS2000-115VAC-S-10"               -- Basic LS2000
@@ -31,7 +31,7 @@ INSERT OR IGNORE INTO quote_items (quote_id, part_number, description, quantity,
 -- LS2100-24VDC-H-12"                -- LS2100 with Halar
 -- LS6000-115VAC-S-14"-1"NPT         -- LS6000 with NPT connection
 -- LS7000-115VAC-H-18"-TEF           -- LS7000 with Teflon insulator
--- LS8000-115VAC-S-24"-CP-SST        -- LS8000 with cable probe and SS tag
+-- LS8000-115VAC-S-24"-CP-SSTAG        -- LS8000 with cable probe and SS tag
 
 -- Test part numbers that should fail validation
 -- LS2000-12VDC-S-10"                -- 12VDC not available for LS2000

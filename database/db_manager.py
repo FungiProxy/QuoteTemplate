@@ -144,37 +144,97 @@ class DatabaseManager:
         return base_price
     
     def calculate_length_cost(self, material_code: str, model_family: str, probe_length: float) -> Dict[str, float]:
-        """Calculate length-based pricing"""
-        length_pricing = self.get_length_pricing(material_code, model_family)
-        if not length_pricing:
+        """Calculate length-based pricing using new stepped calculation"""
+        import math
+        
+        # Round up any non-whole number lengths for pricing
+        probe_length = math.ceil(probe_length)
+        
+        # Get model info for base length
+        model_info = self.get_model_info(model_family)
+        if not model_info:
             return {'length_cost': 0.0, 'surcharge': 0.0}
         
-        base_length = length_pricing['base_length']
-        extra_length = max(0, probe_length - base_length)
+        model_base_length = model_info['base_length']
         
-        # Calculate length cost
+        # Get material info for pricing
+        material_info = self.get_material_info(material_code)
+        if not material_info:
+            return {'length_cost': 0.0, 'surcharge': 0.0}
+        
+        # Calculate length cost based on material type
         length_cost = 0.0
-        if extra_length > 0:
-            if length_pricing['adder_per_foot'] > 0:
-                length_cost = (extra_length / 12.0) * length_pricing['adder_per_foot']
-            elif length_pricing['adder_per_inch'] > 0:
-                length_cost = extra_length * length_pricing['adder_per_inch']
+        if material_info['length_adder_per_foot'] > 0:
+            # Per-foot materials use stepped calculation
+            length_cost = self._calculate_stepped_foot_pricing(
+                model_base_length, 
+                probe_length, 
+                material_info['length_adder_per_foot']
+            )
+        elif material_info['length_adder_per_inch'] > 0:
+            # Per-inch materials use continuous calculation from material base length
+            material_base_length = material_info.get('material_base_length', 4.0)  # Default to 4" if not specified
+            extra_length = max(0, probe_length - material_base_length)
+            if extra_length > 0:
+                length_cost = extra_length * material_info['length_adder_per_inch']
         
         # Calculate nonstandard length surcharge
         surcharge = 0.0
-        if (length_pricing['nonstandard_threshold'] > 0 and 
-            probe_length > length_pricing['nonstandard_threshold']):
-            surcharge = length_pricing['nonstandard_surcharge']
+        if (material_info['nonstandard_length_surcharge'] > 0 and 
+            probe_length > 96.0):  # Standard threshold for most materials
+            surcharge = material_info['nonstandard_length_surcharge']
         
         return {
             'length_cost': length_cost,
             'surcharge': surcharge,
-            'extra_length': extra_length,
-            'base_length': base_length
+            'extra_length': probe_length - model_base_length if probe_length > model_base_length else 0,
+            'base_length': model_base_length
         }
     
-    def calculate_option_cost(self, option_codes: List[str]) -> Dict[str, Any]:
-        """Calculate total cost for options"""
+    def _calculate_stepped_foot_pricing(self, model_base_length: float, probe_length: float, adder_per_foot: float) -> float:
+        """
+        Calculate stepped foot pricing based on foot thresholds.
+        For 10" base models: first adder at 11", then 24", 36", 48", etc.
+        For 6" base models: first adder at 7", then 18", 30", 42", etc. (every 12" from base)
+        """
+        if probe_length <= model_base_length:
+            return 0.0
+        
+        # Calculate foot thresholds based on model base length
+        if model_base_length == 10.0:
+            # For 10" base: thresholds at 11", 24", 36", 48", 60", 72", 84", 96", 108", 120"...
+            thresholds = [11.0]
+            next_threshold = 24.0
+            while next_threshold <= 120.0:  # Reasonable upper limit
+                thresholds.append(next_threshold)
+                next_threshold += 12.0
+        elif model_base_length == 6.0:
+            # For 6" base (FS10000): first adder at 7", then every 12" from base: 18", 30", 42", 54"...
+            thresholds = [7.0]  # First adder at base + 1"
+            next_threshold = model_base_length + 12.0  # Start at 18" (6" + 12")
+            while next_threshold <= 120.0:  # Reasonable upper limit
+                thresholds.append(next_threshold)
+                next_threshold += 12.0  # Continue every 12": 30", 42", 54", etc.
+        else:
+            # For other base lengths, use simple 12" increments from base + 1"
+            thresholds = [model_base_length + 1.0]
+            next_threshold = model_base_length + 12.0
+            while next_threshold <= model_base_length + 120.0:
+                thresholds.append(next_threshold)
+                next_threshold += 12.0
+        
+        # Count how many thresholds the probe length exceeds
+        num_adders = 0
+        for threshold in thresholds:
+            if probe_length >= threshold:
+                num_adders += 1
+            else:
+                break
+        
+        return num_adders * adder_per_foot
+    
+    def calculate_option_cost(self, option_codes: List[str], probe_length: float = 10.0, model_code: Optional[str] = None) -> Dict[str, Any]:
+        """Calculate total cost for options with special handling for 3/4"OD probe"""
         total_cost = 0.0
         option_details = []
         
@@ -208,6 +268,27 @@ class DatabaseManager:
                         'price': 0.0,
                         'price_type': 'fixed'
                     })
+            elif code == '3/4"OD':
+                # Special handling for 3/4" OD probe: $175 base + $175 per foot from model base length
+                model_info = self.get_model_info(model_code) if model_code else None
+                model_base_length = model_info['base_length'] if model_info else 10.0  # Default to 10" if not found
+                
+                base_cost = 175.0
+                extra_length = max(0, probe_length - model_base_length)  # Only charge for extra length
+                per_foot_cost = (extra_length / 12.0) * 175.0  # Convert extra inches to feet
+                total_od_cost = base_cost + per_foot_cost
+                
+                option_details.append({
+                    'code': code,
+                    'name': '3/4" Diameter Probe',
+                    'price': total_od_cost,
+                    'price_type': 'base_plus_per_foot',
+                    'base_cost': base_cost,
+                    'per_foot_cost': per_foot_cost,
+                    'extra_length': extra_length,
+                    'model_base_length': model_base_length
+                })
+                total_cost += total_od_cost
             else:
                 # Regular option from database
                 option_info = self.get_option_info(code)
@@ -244,8 +325,8 @@ class DatabaseManager:
         # Length pricing
         length_info = self.calculate_length_cost(material_code, model_code, probe_length)
         
-        # Option pricing
-        option_info = self.calculate_option_cost(option_codes)
+        # Option pricing (with special handling for 3/4"OD)
+        option_info = self.calculate_option_cost(option_codes, probe_length, model_code)
         
         # Insulator pricing
         insulator_cost = 0.0

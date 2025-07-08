@@ -35,11 +35,12 @@ class PartNumberParser:
                 'VR': 'Vibration Resistance',
                 # 'BP': 'Bent Probe',  # Now handled as degree format (e.g., 90DEG)
                 'CP': 'Cable Probe',
-                'SST': 'Stainless Steel Tag',
-                'TEF': 'Teflon Insulator',
-                'PEEK': 'PEEK Insulator',
-                'SSH': 'Stainless Steel Housing',
-                '3QD': '3/4" Diameter Probe'
+                'SSTAG': 'Stainless Steel Tag',
+                # 'TEF': 'Teflon Insulator',  # Now handled as insulator via XINS format
+                # 'PEEK': 'PEEK Insulator',   # Now handled as insulator via XINS format
+                'SSHSE': 'Stainless Steel Housing',
+                'VRHSE': 'Epoxy Housing',
+                '3/4"OD': '3/4" Diameter Probe'
             }
         
         if not self.insulator_codes:
@@ -203,7 +204,7 @@ class PartNumberParser:
             elif part in ['SS']:  # Stainless Steel housing
                 result['housing_type'] = 'Stainless Steel, NEMA 4X'
                 result['options'].append({
-                    'code': 'SSH',
+                    'code': 'SSHSE',
                     'name': 'Stainless Steel Housing'
                 })
             
@@ -362,6 +363,22 @@ class PartNumberParser:
             
             # Add pricing to result
             result['pricing'] = pricing
+            
+            # Update options with detailed pricing information from database
+            if pricing.get('option_details'):
+                option_details_map = {opt['code']: opt for opt in pricing['option_details']}
+                
+                for option in result.get('options', []):
+                    if option['code'] in option_details_map:
+                        # Merge database pricing details into the option
+                        db_option = option_details_map[option['code']]
+                        option.update({
+                            'price': db_option.get('price', 0),
+                            'price_type': db_option.get('price_type', 'fixed'),
+                            'base_cost': db_option.get('base_cost'),
+                            'per_foot_cost': db_option.get('per_foot_cost'),
+                            'probe_length_feet': db_option.get('probe_length_feet')
+                        })
             
         except Exception as e:
             result['warnings'].append(f"Pricing calculation failed: {str(e)}")

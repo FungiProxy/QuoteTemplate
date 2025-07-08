@@ -44,6 +44,7 @@ CREATE TABLE materials (
     name TEXT NOT NULL,
     description TEXT,
     base_price_adder REAL DEFAULT 0.0,
+    material_base_length REAL DEFAULT 10.0,
     length_adder_per_foot REAL DEFAULT 0.0,
     length_adder_per_inch REAL DEFAULT 0.0,
     nonstandard_length_surcharge REAL DEFAULT 0.0,
@@ -172,29 +173,31 @@ INSERT INTO product_models (model_number, description, base_price, base_length, 
 ('LS8500FR', 'LS8500 Presence/Absence', 0.00, 10.0, '115VAC', 'S', 'DEL', 'Flange', 'SS', '1-1/2"', '450F', '150 PSI', 'NEMA 7, C, D; NEMA 9, E, F, G', '2 Form C Contacts 5 Amp DPDT', 'Replacement for Princo L3545. Flange mounted.');
 
 -- POPULATE MATERIALS
-INSERT INTO materials (code, name, description, base_price_adder, length_adder_per_foot, length_adder_per_inch, nonstandard_length_surcharge, max_length_with_coating, compatible_models) VALUES
-('S', '316 Stainless Steel', '316 Stainless Steel Probe', 0.00, 45.00, 0.00, 0.00, 999.0, 'ALL'),
-('H', 'Halar Coated', 'Halar Coated Probe', 110.00, 110.00, 0.00, 300.00, 999.0, 'ALL'),
-('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 20.00, 0.00, 40.00, 0.00, 999.0, 'ALL'),
-('T', 'Teflon Blind End', 'Teflon Blind End Probe', 60.00, 0.00, 50.00, 0.00, 999.0, 'ALL'),
-('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 60.00, 0.00, 0.00, 999.0, 'ALL'),
-('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 0.00, 50.00, 0.00, 999.0, 'ALL'),
-('C', 'Cable', 'Cable Probe', 80.00, 45.00, 0.00, 0.00, 999.0, 'ALL'),
-('A20', 'Alloy 20', 'Alloy 20 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
-('HC', 'Hastelloy-C-276', 'Hastelloy-C-276 Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
-('HB', 'Hastelloy-B', 'Hastelloy-B Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL'),
-('TIT', 'Titanium', 'Titanium Probe (Manual Pricing)', 0.00, 0.00, 0.00, 0.00, 999.0, 'ALL');
+INSERT INTO materials (code, name, description, base_price_adder, material_base_length, length_adder_per_foot, length_adder_per_inch, nonstandard_length_surcharge, max_length_with_coating, compatible_models) VALUES
+('S', '316 Stainless Steel', '316 Stainless Steel Probe', 0.00, 10.0, 45.00, 0.00, 0.00, 999.0, 'ALL'),
+('H', 'Halar Coated', 'Halar Coated Probe', 110.00, 10.0, 110.00, 0.00, 300.00, 999.0, 'ALL'),
+('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 20.00, 4.0, 0.00, 40.00, 0.00, 999.0, 'ALL'),
+('T', 'Teflon Blind End', 'Teflon Blind End Probe', 60.00, 4.0, 0.00, 50.00, 0.00, 999.0, 'ALL'),
+('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 10.0, 60.00, 0.00, 0.00, 999.0, 'ALL'),
+('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 4.0, 0.00, 50.00, 0.00, 999.0, 'ALL'),
+('C', 'Cable', 'Cable Probe', 80.00, 12.0, 45.00, 0.00, 0.00, 999.0, 'ALL'),
+('A20', 'Alloy 20', 'Alloy 20 Probe (Manual Pricing)', 0.00, 10.0, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('HC', 'Hastelloy-C-276', 'Hastelloy-C-276 Probe (Manual Pricing)', 0.00, 10.0, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('HB', 'Hastelloy-B', 'Hastelloy-B Probe (Manual Pricing)', 0.00, 10.0, 0.00, 0.00, 0.00, 999.0, 'ALL'),
+('TIT', 'Titanium', 'Titanium Probe (Manual Pricing)', 0.00, 10.0, 0.00, 0.00, 0.00, 999.0, 'ALL');
 
 -- POPULATE OPTIONS
 INSERT INTO options (code, name, description, price, price_type, category, compatible_models, exclusions) VALUES
 ('XSP', 'Extra Static Protection', 'Extra Static Protection for plastic pellets/resins', 30.00, 'fixed', 'protection', 'ALL', NULL),
 ('VR', 'Vibration Resistant', 'Vibration Resistant Construction', 50.00, 'fixed', 'protection', 'ALL', NULL),
 -- Bent Probe option removed - now handled as XDEG format in parser
-('SST', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', 'ALL', NULL),
-('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
-('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
-('SSH', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
-('3QD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
+('SSTAG', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', 'ALL', NULL),
+-- TEF and PEEK removed from options - these are handled as insulators via XINS format
+-- ('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
+-- ('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
+('SSHSE', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
+('VRHSE', 'Epoxy Housing', 'Epoxy Housing (Chemical Resistant)', 150.00, 'fixed', 'housing', 'ALL', NULL),
+('3/4"OD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
 
 -- POPULATE INSULATORS
 INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, compatible_models) VALUES
