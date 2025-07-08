@@ -33,9 +33,9 @@ class PartNumberValidator:
         # Valid material codes
         self.valid_materials = {'S', 'H', 'U', 'T', 'TS', 'C', 'CPVC'}
         
-        # Valid option codes
+        # Valid option codes (BP removed - now handled as degree format)
         self.valid_options = {
-            'XSP', 'VR', 'BP', 'CP', 'SST', 'TEF', 'PEEK', 'SSH', '3QD'
+            'XSP', 'VR', 'CP', 'SST', 'TEF', 'PEEK', 'SSH', '3QD'
         }
         
         # Valid insulator codes
@@ -130,8 +130,16 @@ class PartNumberValidator:
         errors = []
         
         for option in options:
-            if option not in self.valid_options:
-                errors.append(f"Unknown option: {option}. Valid options: {', '.join(sorted(self.valid_options))}")
+            # Check for bent probe degree format
+            if option.endswith('DEG'):
+                try:
+                    degree = int(option[:-3])
+                    if not (0 <= degree <= 180):
+                        errors.append(f"Invalid bent probe degree: {option}. Must be between 0 and 180 degrees.")
+                except ValueError:
+                    errors.append(f"Invalid bent probe format: {option}. Expected format: 90DEG")
+            elif option not in self.valid_options:
+                errors.append(f"Unknown option: {option}. Valid options: {', '.join(sorted(self.valid_options))} or XDEG format for bent probe")
         
         return errors
     
@@ -176,8 +184,7 @@ class CompatibilityChecker:
         
         # Incompatible option combinations
         self.incompatible_options = {
-            'CP': ['BP'],  # Cable probe can't be bent
-            'BP': ['CP'],  # Bent probe can't be cable
+            'CP': ['BENT_PROBE'],  # Cable probe can't be bent (handled specially)
         }
         
         # Model-specific option restrictions
@@ -213,6 +220,16 @@ class CompatibilityChecker:
         """Check for incompatible option combinations"""
         errors = []
         
+        # Check for cable probe + bent probe incompatibility
+        has_cable_probe = 'CP' in options
+        has_bent_probe = any(opt.endswith('DEG') for opt in options)
+        
+        if has_cable_probe and has_bent_probe:
+            bent_probe_options = [opt for opt in options if opt.endswith('DEG')]
+            for bent_opt in bent_probe_options:
+                errors.append(f"Options CP and {bent_opt} are incompatible (cable probe cannot be bent)")
+        
+        # Check other incompatible combinations
         for option in options:
             if option in self.incompatible_options:
                 incompatible = self.incompatible_options[option]

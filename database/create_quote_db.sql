@@ -9,6 +9,7 @@ PRAGMA foreign_keys = OFF;
 DROP TABLE IF EXISTS quote_items;
 DROP TABLE IF EXISTS quotes;
 DROP TABLE IF EXISTS length_pricing;
+DROP TABLE IF EXISTS process_connections;
 DROP TABLE IF EXISTS voltages;
 DROP TABLE IF EXISTS insulators;
 DROP TABLE IF EXISTS options;
@@ -87,7 +88,23 @@ CREATE TABLE voltages (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. LENGTH PRICING - Length-based pricing rules
+-- 6. PROCESS CONNECTIONS - All available process connection options
+CREATE TABLE process_connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,                    -- 'NPT', 'Flange', 'Tri-Clamp'
+    size TEXT NOT NULL,                    -- '3/4"', '1"', '1-1/2"', '2"', '3"', '4"'
+    material TEXT NOT NULL DEFAULT 'SS',   -- 'SS', 'CS' (Stainless Steel, Carbon Steel)
+    rating TEXT,                           -- '150#', '300#' (for flanges only)
+    price REAL DEFAULT 0.0,
+    description TEXT,
+    compatible_models TEXT,                -- JSON array of compatible models
+    max_pressure TEXT,
+    max_temperature TEXT,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. LENGTH PRICING - Length-based pricing rules
 CREATE TABLE length_pricing (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     material_code TEXT NOT NULL,
@@ -101,7 +118,7 @@ CREATE TABLE length_pricing (
     FOREIGN KEY (material_code) REFERENCES materials(code)
 );
 
--- 7. QUOTES - Quote tracking (for future expansion)
+-- 8. QUOTES - Quote tracking (for future expansion)
 CREATE TABLE quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     quote_number TEXT NOT NULL UNIQUE,
@@ -113,7 +130,7 @@ CREATE TABLE quotes (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. QUOTE ITEMS - Individual items in quotes
+-- 9. QUOTE ITEMS - Individual items in quotes
 CREATE TABLE quote_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     quote_id INTEGER NOT NULL,
@@ -132,6 +149,9 @@ CREATE INDEX idx_materials_code ON materials(code);
 CREATE INDEX idx_options_code ON options(code);
 CREATE INDEX idx_options_category ON options(category);
 CREATE INDEX idx_insulators_code ON insulators(code);
+CREATE INDEX idx_process_connections_type ON process_connections(type);
+CREATE INDEX idx_process_connections_size ON process_connections(size);
+CREATE INDEX idx_process_connections_type_size ON process_connections(type, size);
 CREATE INDEX idx_voltages_model_voltage ON voltages(model_family, voltage);
 CREATE INDEX idx_length_pricing_material_model ON length_pricing(material_code, model_family);
 CREATE INDEX idx_quotes_number ON quotes(quote_number);
@@ -169,7 +189,7 @@ INSERT INTO materials (code, name, description, base_price_adder, length_adder_p
 INSERT INTO options (code, name, description, price, price_type, category, compatible_models, exclusions) VALUES
 ('XSP', 'Extra Static Protection', 'Extra Static Protection for plastic pellets/resins', 30.00, 'fixed', 'protection', 'ALL', NULL),
 ('VR', 'Vibration Resistant', 'Vibration Resistant Construction', 50.00, 'fixed', 'protection', 'ALL', NULL),
-('BP', 'Bent Probe', 'Bent Probe Configuration', 50.00, 'fixed', 'probe', 'ALL', NULL),
+-- Bent Probe option removed - now handled as XDEG format in parser
 ('SST', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', 'ALL', NULL),
 ('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
 ('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
@@ -183,6 +203,37 @@ INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, c
 ('DEL', 'Delrin', 'Delrin Insulator', 0.00, '250F', 'ALL'),
 ('PEEK', 'PEEK', 'PEEK Insulator', 120.00, '550F', 'ALL'),
 ('CER', 'Ceramic', 'Ceramic Insulator', 200.00, '800F', 'ALL');
+
+-- POPULATE PROCESS CONNECTIONS
+INSERT INTO process_connections (type, size, material, rating, price, description, compatible_models, notes) VALUES
+-- NPT CONNECTIONS (Standard - No additional cost)
+('NPT', '1/2"', 'SS', NULL, 0.0, '1/2" NPT Process Connection', 'ALL', 'Standard threaded connection'),
+('NPT', '3/4"', 'SS', NULL, 0.0, '3/4" NPT Process Connection', 'ALL', 'Most common size'),
+('NPT', '1"', 'SS', NULL, 0.0, '1" NPT Process Connection', 'ALL', 'Heavy duty applications'),
+('NPT', '1-1/2"', 'SS', NULL, 0.0, '1-1/2" NPT Process Connection', 'ALL', 'Large bore connection'),
+('NPT', '2"', 'SS', NULL, 0.0, '2" NPT Process Connection', 'ALL', 'Large bore connection'),
+
+-- FLANGE CONNECTIONS - 150# Rating
+('Flange', '1"', 'SS', '150#', 0.0, '1" 150# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '1-1/2"', 'SS', '150#', 0.0, '1-1/2" 150# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '2"', 'SS', '150#', 0.0, '2" 150# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '3"', 'SS', '150#', 0.0, '3" 150# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '4"', 'SS', '150#', 0.0, '4" 150# RF Flange', 'ALL', 'Socket welded flange mounting'),
+
+-- FLANGE CONNECTIONS - 300# Rating
+('Flange', '1"', 'SS', '300#', 0.0, '1" 300# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '1-1/2"', 'SS', '300#', 0.0, '1-1/2" 300# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '2"', 'SS', '300#', 0.0, '2" 300# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '3"', 'SS', '300#', 0.0, '3" 300# RF Flange', 'ALL', 'Socket welded flange mounting'),
+('Flange', '4"', 'SS', '300#', 0.0, '4" 300# RF Flange', 'ALL', 'Socket welded flange mounting'),
+
+-- FLANGE CONNECTIONS - Carbon Steel Options
+('Flange', '1"', 'CS', '150#', 0.0, '1" 150# RF Flange - Carbon Steel', 'ALL', 'Socket welded flange mounting'),
+('Flange', '1"', 'CS', '300#', 0.0, '1" 300# RF Flange - Carbon Steel', 'ALL', 'Socket welded flange mounting'),
+
+-- TRI-CLAMP CONNECTIONS (Process connections only)
+('Tri-Clamp', '1-1/2"', 'SS', NULL, 280.0, '1-1/2" Tri-Clamp Process Connection', 'ALL', 'Includes clamp and gasket'),
+('Tri-Clamp', '2"', 'SS', NULL, 330.0, '2" Tri-Clamp Process Connection', 'ALL', 'Includes clamp and gasket');
 
 -- POPULATE VOLTAGES - Simplified to 4 core voltages
 INSERT INTO voltages (model_family, voltage, price_adder, is_default) VALUES

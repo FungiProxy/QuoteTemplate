@@ -179,15 +179,46 @@ class DatabaseManager:
         option_details = []
         
         for code in option_codes:
-            option_info = self.get_option_info(code)
-            if option_info:
-                option_details.append({
-                    'code': code,
-                    'name': option_info['name'],
-                    'price': option_info['price'],
-                    'price_type': option_info['price_type']
-                })
-                total_cost += option_info['price']
+            # Check for bent probe degree format (e.g., 90DEG, 45DEG)
+            if code.endswith('DEG'):
+                # Extract degree and validate
+                try:
+                    degree = int(code[:-3])  # Remove 'DEG' suffix
+                    if 0 <= degree <= 180:
+                        option_details.append({
+                            'code': code,
+                            'name': f'Bent Probe ({degree}°)',
+                            'price': 50.0,  # Fixed price for all bent probe configurations
+                            'price_type': 'fixed'
+                        })
+                        total_cost += 50.0
+                    else:
+                        # Invalid degree range
+                        option_details.append({
+                            'code': code,
+                            'name': f'Invalid Bent Probe ({degree}°)',
+                            'price': 0.0,
+                            'price_type': 'fixed'
+                        })
+                except ValueError:
+                    # Invalid format
+                    option_details.append({
+                        'code': code,
+                        'name': f'Invalid Bent Probe Format',
+                        'price': 0.0,
+                        'price_type': 'fixed'
+                    })
+            else:
+                # Regular option from database
+                option_info = self.get_option_info(code)
+                if option_info:
+                    option_details.append({
+                        'code': code,
+                        'name': option_info['name'],
+                        'price': option_info['price'],
+                        'price_type': option_info['price_type']
+                    })
+                    total_cost += option_info['price']
         
         return {
             'total_cost': total_cost,
@@ -201,7 +232,8 @@ class DatabaseManager:
     
     def calculate_total_price(self, model_code: str, voltage: str, material_code: str, 
                             probe_length: float, option_codes: Optional[List[str]] = None, 
-                            insulator_code: Optional[str] = None) -> Dict[str, Any]:
+                            insulator_code: Optional[str] = None, 
+                            connection_info: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Calculate total price for a complete configuration"""
         if option_codes is None:
             option_codes = []
@@ -220,12 +252,23 @@ class DatabaseManager:
         if insulator_code:
             insulator_cost = self.calculate_insulator_cost(insulator_code)
         
+        # Process connection pricing
+        connection_cost = 0.0
+        if connection_info:
+            connection_cost = self.calculate_connection_cost(
+                connection_info.get('type', 'NPT'),
+                connection_info.get('size', '3/4"'),
+                connection_info.get('material', 'SS'),
+                connection_info.get('rating')
+            )
+        
         # Total calculation
         total_price = (base_price + 
                       length_info['length_cost'] + 
                       length_info['surcharge'] + 
                       option_info['total_cost'] + 
-                      insulator_cost)
+                      insulator_cost + 
+                      connection_cost)
         
         return {
             'total_price': total_price,
@@ -234,10 +277,124 @@ class DatabaseManager:
             'length_surcharge': length_info['surcharge'],
             'option_cost': option_info['total_cost'],
             'insulator_cost': insulator_cost,
+            'connection_cost': connection_cost,
             'length_details': length_info,
             'option_details': option_info['options']
         }
     
+    # PROCESS CONNECTION METHODS
+    def get_process_connection_info(self, conn_type: str, size: str, material: str = 'SS', rating: Optional[str] = None) -> Optional[Dict]:
+        """Get process connection information by type, size, material, and rating"""
+        if rating:
+            query = """
+            SELECT * FROM process_connections 
+            WHERE type = ? AND size = ? AND material = ? AND rating = ?
+            LIMIT 1
+            """
+            params = (conn_type, size, material, rating)
+        else:
+            query = """
+            SELECT * FROM process_connections 
+            WHERE type = ? AND size = ? AND material = ? AND (rating IS NULL OR rating = '')
+            LIMIT 1
+            """
+            params = (conn_type, size, material)
+        
+        results = self.execute_query(query, params)
+        return results[0] if results else None
+    
+    def get_available_connections(self, model_family: Optional[str] = None, conn_type: Optional[str] = None) -> List[Dict]:
+        """Get available process connections, optionally filtered by model family and/or connection type"""
+        base_query = "SELECT * FROM process_connections WHERE 1=1"
+        params = []
+        
+        if model_family:
+            base_query += " AND (compatible_models = 'ALL' OR compatible_models LIKE ?)"
+            params.append(f'%{model_family}%')
+        
+        if conn_type:
+            base_query += " AND type = ?"
+            params.append(conn_type)
+        
+        base_query += " ORDER BY type, size, material, rating"
+        
+        return self.execute_query(base_query, tuple(params))
+    
+    def get_connection_types(self) -> List[str]:
+        """Get all available connection types"""
+        query = "SELECT DISTINCT type FROM process_connections ORDER BY type"
+        results = self.execute_query(query)
+        return [row['type'] for row in results]
+    
+    def get_connection_sizes(self, conn_type: Optional[str] = None) -> List[str]:
+        """Get available connection sizes, optionally filtered by connection type"""
+        if conn_type:
+            query = "SELECT DISTINCT size FROM process_connections WHERE type = ? ORDER BY size"
+            params = (conn_type,)
+        else:
+            query = "SELECT DISTINCT size FROM process_connections ORDER BY size"
+            params = ()
+        
+        results = self.execute_query(query, params)
+        return [row['size'] for row in results]
+    
+    def get_connection_materials(self, conn_type: Optional[str] = None, size: Optional[str] = None) -> List[str]:
+        """Get available connection materials, optionally filtered by type and size"""
+        base_query = "SELECT DISTINCT material FROM process_connections WHERE 1=1"
+        params = []
+        
+        if conn_type:
+            base_query += " AND type = ?"
+            params.append(conn_type)
+        
+        if size:
+            base_query += " AND size = ?"
+            params.append(size)
+        
+        base_query += " ORDER BY material"
+        
+        results = self.execute_query(base_query, tuple(params))
+        return [row['material'] for row in results]
+    
+    def get_connection_ratings(self, conn_type: str, size: str, material: str = 'SS') -> List[str]:
+        """Get available ratings for a specific connection type/size/material combination"""
+        query = """
+        SELECT DISTINCT rating FROM process_connections 
+        WHERE type = ? AND size = ? AND material = ? AND rating IS NOT NULL AND rating != ''
+        ORDER BY rating
+        """
+        results = self.execute_query(query, (conn_type, size, material))
+        return [row['rating'] for row in results]
+    
+    def calculate_connection_cost(self, conn_type: str, size: str, material: str = 'SS', rating: Optional[str] = None) -> float:
+        """Calculate cost for a process connection"""
+        conn_info = self.get_process_connection_info(conn_type, size, material, rating)
+        return conn_info['price'] if conn_info else 0.0
+    
+    def format_connection_display(self, conn_type: str, size: str, material: str = 'SS', rating: Optional[str] = None) -> str:
+        """Format connection information for display"""
+        if conn_type == 'NPT':
+            return f"{size}NPT ({material})"
+        elif conn_type == 'Flange':
+            rating_str = f" {rating}" if rating else ""
+            return f"{size}{rating_str} RF Flange ({material})"
+        elif conn_type == 'Tri-Clamp':
+            return f"{size} Tri-Clamp ({material})"
+        else:
+            return f"{size} {conn_type} ({material})"
+    
+    def get_default_connection(self, model_code: str) -> Optional[Dict]:
+        """Get default process connection for a model"""
+        model_info = self.get_model_info(model_code)
+        if not model_info:
+            return None
+        
+        conn_type = model_info.get('default_process_connection_type', 'NPT')
+        conn_size = model_info.get('default_process_connection_size', '3/4"')
+        conn_material = model_info.get('default_process_connection_material', 'SS')
+        
+        return self.get_process_connection_info(conn_type, conn_size, conn_material)
+
     def get_material_codes(self) -> Dict[str, str]:
         """Get material code mappings"""
         query = "SELECT code, name FROM materials"
@@ -286,7 +443,7 @@ class DatabaseManager:
             print(f"✓ Tables found: {result['count']}")
             
             # Check for key tables
-            key_tables = ['product_models', 'materials', 'options', 'insulators', 'voltages']
+            key_tables = ['product_models', 'materials', 'options', 'insulators', 'voltages', 'process_connections']
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             existing_tables = [row[0] for row in cursor.fetchall()]
             
@@ -333,6 +490,25 @@ if __name__ == "__main__":
         print("\nTesting pricing calculation...")
         pricing = db.calculate_total_price('LS2000', '115VAC', 'S', 10.0, ['XSP'], 'U')
         print(f"Sample price: ${pricing['total_price']:.2f}")
+        
+        # Test process connections
+        print("\nTesting process connections...")
+        connection_types = db.get_connection_types()
+        print(f"Available connection types: {connection_types}")
+        
+        if connection_types:
+            connections = db.get_available_connections(conn_type='NPT')
+            print(f"NPT connections found: {len(connections)}")
+            
+            # Test specific connection
+            npt_conn = db.get_process_connection_info('NPT', '3/4"', 'SS')
+            if npt_conn:
+                print(f"3/4\" NPT connection: {db.format_connection_display('NPT', '3/4\"', 'SS')}")
+            
+            # Test default connection for LS2000
+            default_conn = db.get_default_connection('LS2000')
+            if default_conn:
+                print(f"LS2000 default connection: {default_conn['description']}")
         
     else:
         print("\n✗ Database connection failed!")

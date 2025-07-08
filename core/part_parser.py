@@ -33,7 +33,7 @@ class PartNumberParser:
             self.option_codes = {
                 'XSP': 'Extra Static Protection',
                 'VR': 'Vibration Resistance',
-                'BP': 'Bent Probe',
+                # 'BP': 'Bent Probe',  # Now handled as degree format (e.g., 90DEG)
                 'CP': 'Cable Probe',
                 'SST': 'Stainless Steel Tag',
                 'TEF': 'Teflon Insulator',
@@ -180,6 +180,14 @@ class PartNumberParser:
             if part.endswith('INS'):
                 result['insulator'] = self._parse_insulator(part)
             
+            # Check for bent probe degree format (e.g., 90DEG, 45DEG)
+            elif part.endswith('DEG'):
+                bent_probe_info = self._parse_bent_probe(part)
+                if bent_probe_info:
+                    result['options'].append(bent_probe_info)
+                else:
+                    result['warnings'].append(f"Invalid bent probe format: {part}")
+            
             # Check for known option codes
             elif part in self.option_codes:
                 result['options'].append({
@@ -264,6 +272,29 @@ class PartNumberParser:
             'display': connection_part
         }
     
+    def _parse_bent_probe(self, bent_probe_part: str) -> Optional[Dict[str, Any]]:
+        """
+        Parse bent probe degree specification like '90DEG', '45DEG', '180DEG'
+        Returns: {'code': '90DEG', 'name': 'Bent Probe (90°)', 'degree': 90}
+        """
+        # Pattern: NUMBER + DEG
+        match = re.match(r'(\d+)DEG', bent_probe_part)
+        
+        if match:
+            degree = int(match.group(1))
+            
+            # Validate degree range (0-180)
+            if 0 <= degree <= 180:
+                return {
+                    'code': f'{degree}DEG',
+                    'name': f'Bent Probe ({degree}°)',
+                    'degree': degree,
+                    'price': 50.0,  # Fixed price for all bent probe configurations
+                    'category': 'probe'
+                }
+            
+        return None
+    
     def _calculate_specifications(self, result: Dict[str, Any]):
         """Calculate derived specifications based on configuration"""
         
@@ -314,9 +345,19 @@ class PartNumberParser:
                 # Use default insulator
                 insulator_code = result.get('insulator_material', 'U')
             
+            # Get process connection info
+            connection_info = None
+            if result.get('process_connection'):
+                connection_info = {
+                    'type': result['process_connection'].get('type', 'NPT'),
+                    'size': result['process_connection'].get('size', '3/4"'),
+                    'material': 'SS',  # Default to stainless steel
+                    'rating': result['process_connection'].get('rating')
+                }
+            
             # Calculate pricing using database
             pricing = self.db.calculate_total_price(
-                model, voltage, material, length, option_codes, insulator_code
+                model, voltage, material, length, option_codes, insulator_code, connection_info
             )
             
             # Add pricing to result
@@ -331,6 +372,7 @@ class PartNumberParser:
                 'length_surcharge': 0.0,
                 'option_cost': 0.0,
                 'insulator_cost': 0.0,
+                'connection_cost': 0.0,
                 'error': str(e)
             }
     
@@ -341,7 +383,7 @@ class PartNumberParser:
         if result.get('probe_material') == 'C':  # Cable probe
             # Cable probe can't have bent probe option
             for option in result.get('options', []):
-                if option['code'] == 'BP':
+                if option['code'].endswith('DEG'):  # Bent probe in degree format
                     result['errors'].append("Cable probe cannot be combined with bent probe option")
         
         # Check length limits
@@ -387,6 +429,7 @@ class PartNumberParser:
             'length_surcharge': pricing.get('length_surcharge', 0.0),
             'option_cost': pricing.get('option_cost', 0.0),
             'insulator_cost': pricing.get('insulator_cost', 0.0),
+            'connection_cost': pricing.get('connection_cost', 0.0),
             'price_breakdown': self._format_price_breakdown(pricing)
         }
         
@@ -410,6 +453,9 @@ class PartNumberParser:
         
         if pricing.get('insulator_cost', 0) > 0:
             breakdown.append(f"Insulator: ${pricing['insulator_cost']:.2f}")
+        
+        if pricing.get('connection_cost', 0) > 0:
+            breakdown.append(f"Process Connection: ${pricing['connection_cost']:.2f}")
         
         if pricing.get('total_price', 0) > 0:
             breakdown.append(f"TOTAL: ${pricing['total_price']:.2f}")
@@ -487,6 +533,8 @@ if __name__ == "__main__":
                     print(f"   - Options: ${pricing['option_cost']:.2f}")
                 if pricing.get('insulator_cost', 0) > 0:
                     print(f"   - Insulator: ${pricing['insulator_cost']:.2f}")
+                if pricing.get('connection_cost', 0) > 0:
+                    print(f"   - Connection: ${pricing['connection_cost']:.2f}")
             
             if result.get('options'):
                 print(f"✓ Options: {', '.join([opt['code'] for opt in result['options']])}")
