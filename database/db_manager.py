@@ -539,15 +539,263 @@ class DatabaseManager:
         return {row['code']: row['name'] for row in results}
     
     def search_parts(self, search_term: str) -> List[Dict]:
-        """Search for parts by model number or description"""
+        """Search for parts in product catalog"""
         query = """
-        SELECT * FROM product_models 
+        SELECT model_number as part_number, description as name, base_price as price, 'product' as type
+        FROM product_models 
         WHERE model_number LIKE ? OR description LIKE ?
-        LIMIT 20
         """
+        
         search_pattern = f"%{search_term}%"
         return self.execute_query(query, (search_pattern, search_pattern))
+
+    # SPARE PARTS METHODS
     
+    def get_spare_parts_by_model(self, model_code: str) -> List[Dict]:
+        """Get all spare parts compatible with a specific model"""
+        query = """
+        SELECT sp.*, 
+               CASE 
+                   WHEN sp.compatible_models LIKE ? THEN 1
+                   ELSE 0
+               END as direct_match
+        FROM spare_parts sp
+        WHERE sp.compatible_models LIKE ?
+        ORDER BY direct_match DESC, sp.category, sp.name
+        """
+        
+        search_pattern = f"%{model_code}%"
+        return self.execute_query(query, (search_pattern, search_pattern))
+    
+    def get_spare_parts_by_category(self, category: str, model_code: Optional[str] = None) -> List[Dict]:
+        """Get spare parts by category, optionally filtered by model compatibility"""
+        if model_code:
+            query = """
+            SELECT * FROM spare_parts 
+            WHERE category = ? AND compatible_models LIKE ?
+            ORDER BY name
+            """
+            search_pattern = f"%{model_code}%"
+            params = (category, search_pattern)
+        else:
+            query = """
+            SELECT * FROM spare_parts 
+            WHERE category = ?
+            ORDER BY name
+            """
+            params = (category,)
+        
+        return self.execute_query(query, params)
+    
+    def get_spare_part_by_part_number(self, part_number: str) -> Optional[Dict]:
+        """Get specific spare part by part number"""
+        query = "SELECT * FROM spare_parts WHERE part_number = ?"
+        results = self.execute_query(query, (part_number,))
+        return results[0] if results else None
+    
+    def search_spare_parts(self, search_term: str, model_code: Optional[str] = None) -> List[Dict]:
+        """Search spare parts by name, part number, or description"""
+        if model_code:
+            query = """
+            SELECT * FROM spare_parts 
+            WHERE (part_number LIKE ? OR name LIKE ? OR description LIKE ?)
+              AND compatible_models LIKE ?
+            ORDER BY 
+                CASE WHEN part_number LIKE ? THEN 1 ELSE 2 END,
+                name
+            """
+            search_pattern = f"%{search_term}%"
+            model_pattern = f"%{model_code}%"
+            params = (search_pattern, search_pattern, search_pattern, model_pattern, search_pattern)
+        else:
+            query = """
+            SELECT * FROM spare_parts 
+            WHERE part_number LIKE ? OR name LIKE ? OR description LIKE ?
+            ORDER BY 
+                CASE WHEN part_number LIKE ? THEN 1 ELSE 2 END,
+                name
+            """
+            search_pattern = f"%{search_term}%"
+            params = (search_pattern, search_pattern, search_pattern, search_pattern)
+        
+        return self.execute_query(query, params)
+    
+    def get_spare_part_categories(self, model_code: Optional[str] = None) -> List[Dict]:
+        """Get available spare part categories, optionally filtered by model"""
+        if model_code:
+            query = """
+            SELECT DISTINCT category, COUNT(*) as part_count
+            FROM spare_parts 
+            WHERE category IS NOT NULL AND compatible_models LIKE ?
+            GROUP BY category
+            ORDER BY category
+            """
+            search_pattern = f"%{model_code}%"
+            params = (search_pattern,)
+        else:
+            query = """
+            SELECT DISTINCT category, COUNT(*) as part_count
+            FROM spare_parts 
+            WHERE category IS NOT NULL
+            GROUP BY category
+            ORDER BY category
+            """
+            params = ()
+        
+        return self.execute_query(query, params)
+    
+    def calculate_spare_part_price(self, part_number: str, quantity: int = 1, 
+                                 voltage: Optional[str] = None, 
+                                 length: Optional[float] = None,
+                                 sensitivity: Optional[str] = None) -> Dict[str, Any]:
+        """Calculate spare part pricing with options for voltage, length, and sensitivity specs"""
+        
+        spare_part = self.get_spare_part_by_part_number(part_number)
+        if not spare_part:
+            return {
+                'base_price': 0.0,
+                'total_price': 0.0,
+                'quantity': quantity,
+                'error': f"Spare part '{part_number}' not found"
+            }
+        
+        base_price = spare_part['price']
+        total_price = base_price * quantity
+        
+        # Handle special pricing for length-dependent parts
+        if spare_part['requires_length_spec'] and length and length > 10.0:
+            # For probe assemblies with length specifications
+            if '3/4' in spare_part['part_number'].upper() and 'PROBE' in spare_part['part_number'].upper():
+                # 3/4" diameter probes have $175/ft adder
+                extra_feet = (length - 10.0) / 12.0  # Convert inches to feet
+                if extra_feet > 0:
+                    length_adder = extra_feet * 175.0
+                    total_price = (base_price + length_adder) * quantity
+        
+        # Handle special requirements notes
+        notes = []
+        if spare_part['requires_voltage_spec']:
+            if voltage:
+                notes.append(f"Voltage: {voltage}")
+            else:
+                notes.append("Voltage specification required when ordering")
+        
+        if spare_part['requires_length_spec']:
+            if length:
+                notes.append(f"Length: {length}\"")
+            else:
+                notes.append("Length specification required when ordering")
+        
+        if spare_part['requires_sensitivity_spec']:
+            if sensitivity:
+                notes.append(f"Sensitivity: {sensitivity}")
+            else:
+                notes.append("Sensitivity specification required when ordering")
+        
+        return {
+            'part_number': part_number,
+            'name': spare_part['name'],
+            'description': spare_part['description'],
+            'category': spare_part['category'],
+            'base_price': base_price,
+            'unit_price': total_price / quantity,
+            'total_price': total_price,
+            'quantity': quantity,
+            'notes': notes,
+            'special_requirements': {
+                'requires_voltage': spare_part['requires_voltage_spec'],
+                'requires_length': spare_part['requires_length_spec'],
+                'requires_sensitivity': spare_part['requires_sensitivity_spec']
+            }
+        }
+    
+    def get_popular_spare_parts(self, model_code: Optional[str] = None, limit: int = 10) -> List[Dict]:
+        """Get most common spare parts, optionally filtered by model"""
+        # Priority order: electronics, probe_assembly, housing, card, transmitter, receiver, fuse, cable
+        priority_categories = ['electronics', 'probe_assembly', 'housing', 'card', 'transmitter', 'receiver', 'fuse', 'cable']
+        
+        if model_code:
+            query = """
+            SELECT *, 
+                   CASE 
+                       WHEN category = 'electronics' THEN 1
+                       WHEN category = 'probe_assembly' THEN 2
+                       WHEN category = 'housing' THEN 3
+                       WHEN category = 'card' THEN 4
+                       WHEN category = 'transmitter' THEN 5
+                       WHEN category = 'receiver' THEN 6
+                       WHEN category = 'fuse' THEN 7
+                       WHEN category = 'cable' THEN 8
+                       ELSE 9
+                   END as priority
+            FROM spare_parts 
+            WHERE compatible_models LIKE ?
+            ORDER BY priority, price DESC
+            LIMIT ?
+            """
+            search_pattern = f"%{model_code}%"
+            params = (search_pattern, limit)
+        else:
+            query = """
+            SELECT *, 
+                   CASE 
+                       WHEN category = 'electronics' THEN 1
+                       WHEN category = 'probe_assembly' THEN 2
+                       WHEN category = 'housing' THEN 3
+                       WHEN category = 'card' THEN 4
+                       WHEN category = 'transmitter' THEN 5
+                       WHEN category = 'receiver' THEN 6
+                       WHEN category = 'fuse' THEN 7
+                       WHEN category = 'cable' THEN 8
+                       ELSE 9
+                   END as priority
+            FROM spare_parts
+            ORDER BY priority, price DESC
+            LIMIT ?
+            """
+            params = (limit,)
+        
+        return self.execute_query(query, params)
+    
+    def validate_spare_part_compatibility(self, part_number: str, model_code: str) -> Dict[str, Any]:
+        """Validate if a spare part is compatible with a specific model"""
+        spare_part = self.get_spare_part_by_part_number(part_number)
+        if not spare_part:
+            return {
+                'compatible': False,
+                'error': f"Spare part '{part_number}' not found"
+            }
+        
+        try:
+            # Parse the compatible_models JSON array
+            compatible_models = json.loads(spare_part['compatible_models'])
+            
+            # Check for exact match or wildcard compatibility
+            if model_code in compatible_models or 'ALL' in compatible_models:
+                return {
+                    'compatible': True,
+                    'part_number': part_number,
+                    'model_code': model_code,
+                    'compatible_models': compatible_models
+                }
+            else:
+                return {
+                    'compatible': False,
+                    'part_number': part_number,
+                    'model_code': model_code,
+                    'compatible_models': compatible_models,
+                    'error': f"Part '{part_number}' is not compatible with model '{model_code}'"
+                }
+        except (json.JSONDecodeError, KeyError):
+            # Fallback to string search if JSON parsing fails
+            if model_code in spare_part['compatible_models']:
+                return {'compatible': True}
+            else:
+                return {
+                    'compatible': False,
+                    'error': f"Compatibility data format error for part '{part_number}'"
+                }
+
     def test_connection(self) -> bool:
         """Test database connection and return basic info"""
         if not self.connect():

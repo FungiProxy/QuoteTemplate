@@ -144,6 +144,22 @@ CREATE TABLE quote_items (
     FOREIGN KEY (quote_id) REFERENCES quotes(id)
 );
 
+-- 10. SPARE PARTS - Replacement parts for all product models
+CREATE TABLE spare_parts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    part_number TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    price REAL NOT NULL,
+    category TEXT, -- 'electronics', 'probe_assembly', 'housing', 'fuse', 'cable', 'card', 'transmitter', 'receiver'
+    compatible_models TEXT, -- JSON array of compatible models
+    notes TEXT,
+    requires_voltage_spec BOOLEAN DEFAULT 0, -- True if voltage must be specified when ordering
+    requires_length_spec BOOLEAN DEFAULT 0, -- True if length must be specified when ordering
+    requires_sensitivity_spec BOOLEAN DEFAULT 0, -- True if sensitivity must be specified when ordering
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- INDEXES for performance
 CREATE INDEX idx_product_models_model ON product_models(model_number);
 CREATE INDEX idx_materials_code ON materials(code);
@@ -157,6 +173,8 @@ CREATE INDEX idx_voltages_model_voltage ON voltages(model_family, voltage);
 CREATE INDEX idx_length_pricing_material_model ON length_pricing(material_code, model_family);
 CREATE INDEX idx_quotes_number ON quotes(quote_number);
 CREATE INDEX idx_quote_items_quote ON quote_items(quote_id);
+CREATE INDEX idx_spare_parts_part_number ON spare_parts(part_number);
+CREATE INDEX idx_spare_parts_category ON spare_parts(category);
 
 -- POPULATE BASE MODELS
 INSERT INTO product_models (model_number, description, base_price, base_length, default_voltage, default_material, default_insulator, default_process_connection_type, default_process_connection_material, default_process_connection_size, max_temp_rating, max_pressure, housing_type, output_type, application_notes) VALUES
@@ -300,6 +318,66 @@ INSERT INTO length_pricing (material_code, model_family, base_length, adder_per_
 ('TIT', 'LS8000', 10.0, 0.00, 0.00, 0.00, 0.0),
 ('TIT', 'LT9000', 10.0, 0.00, 0.00, 0.00, 0.0);
 
+-- POPULATE SPARE PARTS
+INSERT INTO spare_parts (part_number, name, description, price, category, compatible_models, notes, requires_voltage_spec, requires_length_spec, requires_sensitivity_spec) VALUES
+-- LS2000 SPARE PARTS
+('LS2000-ELECTRONICS', 'LS2000 Electronics', 'LS2000 Electronics Assembly', 265.00, 'electronics', '["LS2000"]', 'Specify voltage when ordering', 1, 0, 0),
+('LS2000-U-PROBE-ASSEMBLY-4', 'LS2000-U-Probe Assembly-4"', 'LS2000 UHMWPE Probe Assembly 4 inch', 210.00, 'probe_assembly', '["LS2000"]', NULL, 0, 0, 0),
+('LS2000-T-PROBE-ASSEMBLY-4', 'LS2000-T-Probe Assembly-4"', 'LS2000 Teflon Probe Assembly 4 inch', 250.00, 'probe_assembly', '["LS2000"]', NULL, 0, 0, 0),
+('LS2000-S-PROBE-ASSEMBLY-10', 'LS2000-S-Probe Assembly-10"', 'LS2000 Stainless Steel Probe Assembly 10 inch', 195.00, 'probe_assembly', '["LS2000"]', NULL, 0, 0, 0),
+('LS2000-H-PROBE-ASSEMBLY-10', 'LS2000-H-Probe Assembly-10"', 'LS2000 Halar Coated Probe Assembly 10 inch', 320.00, 'probe_assembly', '["LS2000"]', NULL, 0, 0, 0),
+('LS2000-HOUSING', 'LS2000 Housing', 'LS2000 Housing Assembly', 100.00, 'housing', '["LS2000"]', NULL, 0, 0, 0),
+
+-- LS2100 SPARE PARTS
+('LS2100-ELECTRONICS', 'LS2100 Electronics', 'LS2100 Electronics Assembly', 290.00, 'electronics', '["LS2100"]', NULL, 0, 0, 0),
+('LS2100-S-PROBE-ASSEMBLY-10', 'LS2100-S-Probe Assembly-10"', 'LS2100 Stainless Steel Probe Assembly 10 inch', 230.00, 'probe_assembly', '["LS2100"]', NULL, 0, 0, 0),
+('LS2100-H-PROBE-ASSEMBLY-10', 'LS2100-H-Probe Assembly-10"', 'LS2100 Halar Coated Probe Assembly 10 inch', 360.00, 'probe_assembly', '["LS2100"]', NULL, 0, 0, 0),
+('LS2100-HOUSING', 'LS2100 Housing', 'LS2100 Housing Assembly', 100.00, 'housing', '["LS2100"]', NULL, 0, 0, 0),
+
+-- LS6000 SPARE PARTS
+('LS6000-ELECTRONICS', 'LS6000 Electronics', 'LS6000 Electronics Assembly', 295.00, 'electronics', '["LS6000"]', NULL, 0, 0, 0),
+('LS6000-S-PROBE-ASSEMBLY-10', 'LS6000-S-Probe Assembly-10"', 'LS6000 Stainless Steel Probe Assembly 10 inch', 240.00, 'probe_assembly', '["LS6000"]', NULL, 0, 0, 0),
+('LS6000-H-PROBE-ASSEMBLY-10', 'LS6000-H-Probe Assembly-10"', 'LS6000 Halar Coated Probe Assembly 10 inch', 370.00, 'probe_assembly', '["LS6000"]', NULL, 0, 0, 0),
+('LS6000-HOUSING', 'LS6000 Housing', 'LS6000 Housing Assembly', 140.00, 'housing', '["LS6000"]', NULL, 0, 0, 0),
+('LS6000-S-PROBE-ASSEMBLY-3/4-10', 'LS6000-S-Probe Assembly-3/4" Diameter-10"', 'LS6000 Stainless Steel 3/4" Diameter Probe Assembly 10 inch', 370.00, 'probe_assembly', '["LS6000"]', 'Add $175/ft for longer probes', 0, 1, 0),
+
+-- LS7000 SPARE PARTS
+('LS7000-PS-POWER-SUPPLY', 'LS7000-PS-Power Supply', 'LS7000 Power Supply', 230.00, 'electronics', '["LS7000", "LS7000/2"]', 'Specify voltage when ordering', 1, 0, 0),
+('LS7000-SC-SENSING-CARD', 'LS7000-SC-Sensing Card', 'LS7000 Sensing Card', 235.00, 'card', '["LS7000"]', NULL, 0, 0, 0),
+('LS7000-S-PROBE-ASSEMBLY-10', 'LS7000-S-Probe Assembly-10"', 'LS7000 Stainless Steel Probe Assembly 10 inch', 280.00, 'probe_assembly', '["LS7000"]', NULL, 0, 0, 0),
+('LS7000-H-PROBE-ASSEMBLY-10', 'LS7000-H-Probe Assembly-10"', 'LS7000 Halar Coated Probe Assembly 10 inch', 370.00, 'probe_assembly', '["LS7000", "LS7000/2"]', NULL, 0, 0, 0),
+('LS7000-HOUSING', 'LS7000 Housing', 'LS7000 Housing Assembly', 140.00, 'housing', '["LS7000", "LS7000/2"]', NULL, 0, 0, 0),
+('LS7000-S-PROBE-ASSEMBLY-3/4-10', 'LS7000-S-Probe Assembly-3/4" Diameter-10"', 'LS7000 Stainless Steel 3/4" Diameter Probe Assembly 10 inch', 435.00, 'probe_assembly', '["LS7000"]', 'Add $175/ft for longer probes', 0, 1, 0),
+('FUSE-1/2-AMP', 'Fuse (1/2 AMP)', '1/2 Amp Fuse', 10.00, 'fuse', '["LS7000", "LS7000/2", "LS8000", "LS8000/2", "LT9000"]', NULL, 0, 0, 0),
+
+-- LS7000/2 SPARE PARTS
+('LS7000/2-DP-DUAL-POINT-CARD', 'LS7000/2-DP Dual Point Card', 'LS7000/2 Dual Point Card', 255.00, 'card', '["LS7000/2"]', NULL, 0, 0, 0),
+
+-- LS8000 SPARE PARTS
+('LS8000-R-RECEIVER-CARD', 'LS8000-R-Receiver Card', 'LS8000 Receiver Card', 305.00, 'receiver', '["LS8000"]', 'Specify voltage when ordering', 1, 0, 0),
+('LS8000-T-TRANSMITTER', 'LS8000-T-Transmitter', 'LS8000 Transmitter', 285.00, 'transmitter', '["LS8000", "LS8000/2"]', 'Specify size and sensitivity when ordering', 0, 0, 1),
+('LS8000-S-PROBE-ASSEMBLY-10', 'LS8000-S-Probe Assembly-10"', 'LS8000 Stainless Steel Probe Assembly 10 inch', 230.00, 'probe_assembly', '["LS8000"]', NULL, 0, 0, 0),
+('LS8000-H-PROBE-ASSEMBLY-10', 'LS8000-H-Probe Assembly-10"', 'LS8000 Halar Coated Probe Assembly 10 inch', 320.00, 'probe_assembly', '["LS8000", "LS8000/2"]', NULL, 0, 0, 0),
+('LS8000-HOUSING', 'LS8000 Housing', 'LS8000 Housing Assembly', 100.00, 'housing', '["LS8000", "LS8000/2"]', NULL, 0, 0, 0),
+('LS8000-S-PROBE-ASSEMBLY-3/4-10', 'LS8000-S-Probe Assembly-3/4" Diameter-10"', 'LS8000 Stainless Steel 3/4" Diameter Probe Assembly 10 inch', 445.00, 'probe_assembly', '["LS8000"]', 'Add $175/ft for longer probes', 0, 1, 0),
+('LS8000-TRAN-EX-S-10', 'LS8000-TRAN-EX-S-10"', 'LS8000 Extra Transmitter with 3/4" Diameter Probe and Housing (No Receiver)', 565.00, 'transmitter', '["LS8000"]', 'Includes housing, probe assembly, and transmitter. Add $175/ft for longer probes', 0, 1, 0),
+
+-- LS8000/2 SPARE PARTS
+('LS8000/2-R-RECEIVER-CARD', 'LS8000/2-R-Receiver Card', 'LS8000/2 Receiver Card', 385.00, 'receiver', '["LS8000/2"]', 'Specify voltage when ordering', 1, 0, 0),
+
+-- LT9000 SPARE PARTS
+('LT9000-MA-PLUGIN-CARD', 'LT9000-MA (Plug-in card)', 'LT9000 MA Plug-in Card', 295.00, 'card', '["LT9000"]', NULL, 0, 0, 0),
+('LT9000-BB-POWER-SUPPLY', 'LT9000-BB (Power Supply)', 'LT9000 BB Power Supply', 295.00, 'electronics', '["LT9000"]', 'Specify voltage when ordering', 1, 0, 0),
+('LT9000-H-PROBE-ASSEMBLY-10', 'LT9000-H-Probe Assembly-10"', 'LT9000 Halar Coated Probe Assembly 10 inch', 370.00, 'probe_assembly', '["LT9000"]', NULL, 0, 0, 0),
+('LT9000-HOUSING', 'LT9000 Housing', 'LT9000 Housing Assembly', 140.00, 'housing', '["LT9000"]', NULL, 0, 0, 0),
+
+-- FS10000 SPARE PARTS
+('FS10000-ELECTRONICS', 'FS10000 Electronics', 'FS10000 Electronics Assembly', 1440.00, 'electronics', '["FS10000"]', 'Specify voltage when ordering', 1, 0, 0),
+('FS10000-PROBE-ASSEMBLY-6', 'FS10000-Probe Assembly-6"', 'FS10000 Probe Assembly 6 inch', 200.00, 'probe_assembly', '["FS10000"]', 'Specify length when ordering', 0, 1, 0),
+('FS10000-NEMA-4X-WINDOWED-ENCLOSURE', 'FS10000-NEMA 4X Windowed Enclosure', 'FS10000 NEMA 4X Windowed Enclosure', 300.00, 'housing', '["FS10000"]', NULL, 0, 0, 0),
+('FS10000-REDDOT-GALB-2-OR', 'FS10000-REDDOT-GALB-2-OR', 'FS10000 Aluminum Probe Housing', 100.00, 'housing', '["FS10000"]', 'Aluminum Probe Housing', 0, 0, 0),
+('FS10000-COAXIAL-CABLE-15FT', '15 Feet Coaxial Cable w/ Connectors', 'FS10000 15 Feet Coaxial Cable with Connectors', 100.00, 'cable', '["FS10000"]', NULL, 0, 0, 0);
+
 -- Create a view for easy price calculations
 CREATE VIEW price_calculator AS
 SELECT 
@@ -320,6 +398,33 @@ SELECT
 FROM product_models pm
 LEFT JOIN materials m ON pm.default_material = m.code
 LEFT JOIN insulators i ON pm.default_insulator = i.code;
+
+-- Create a view for spare parts by model
+CREATE VIEW spare_parts_by_model AS
+SELECT 
+    sp.part_number,
+    sp.name,
+    sp.description,
+    sp.price,
+    sp.category,
+    sp.compatible_models,
+    sp.notes,
+    sp.requires_voltage_spec,
+    sp.requires_length_spec,
+    sp.requires_sensitivity_spec,
+    CASE 
+        WHEN sp.compatible_models LIKE '%LS2000%' THEN 'LS2000'
+        WHEN sp.compatible_models LIKE '%LS2100%' THEN 'LS2100'
+        WHEN sp.compatible_models LIKE '%LS6000%' THEN 'LS6000'
+        WHEN sp.compatible_models LIKE '%LS7000/2%' THEN 'LS7000/2'
+        WHEN sp.compatible_models LIKE '%LS7000%' THEN 'LS7000'
+        WHEN sp.compatible_models LIKE '%LS8000/2%' THEN 'LS8000/2'
+        WHEN sp.compatible_models LIKE '%LS8000%' THEN 'LS8000'
+        WHEN sp.compatible_models LIKE '%LT9000%' THEN 'LT9000'
+        WHEN sp.compatible_models LIKE '%FS10000%' THEN 'FS10000'
+        ELSE 'MULTIPLE'
+    END as primary_model
+FROM spare_parts sp;
 
 -- Re-enable foreign key constraints
 PRAGMA foreign_keys = ON; 

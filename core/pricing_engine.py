@@ -5,6 +5,7 @@ Centralized pricing calculations and business rules
 
 from typing import Dict, List, Optional, Any, Tuple
 from database.db_manager import DatabaseManager
+from core.spare_parts_manager import SparePartsManager
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -18,6 +19,7 @@ class PricingEngine:
     def __init__(self):
         """Initialize pricing engine with database connection"""
         self.db = DatabaseManager()
+        self.spare_parts_manager = SparePartsManager(self.db)
         
     def calculate_complete_pricing(self, 
                                  model_code: str, 
@@ -541,6 +543,211 @@ class PricingEngine:
             is_valid = False
         
         return is_valid, warnings
+    
+    # SPARE PARTS PRICING METHODS
+    
+    def calculate_spare_parts_pricing(self, spare_parts_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calculate total pricing for a list of spare parts
+        
+        Args:
+            spare_parts_list: List of spare part dictionaries with part_number, quantity, and optional specifications
+            
+        Returns:
+            Dict containing spare parts pricing breakdown and totals
+        """
+        try:
+            result = {
+                'spare_parts': [],
+                'subtotal': 0.0,
+                'total_parts': 0,
+                'breakdown': [],
+                'warnings': [],
+                'success': True
+            }
+            
+            if not spare_parts_list:
+                result['breakdown'].append("No spare parts included")
+                return result
+            
+            for part_item in spare_parts_list:
+                part_pricing = self.spare_parts_manager.calculate_spare_part_quote(
+                    part_number=part_item['part_number'],
+                    quantity=part_item.get('quantity', 1),
+                    specifications=part_item.get('specifications', {})
+                )
+                
+                if 'error' not in part_pricing:
+                    result['spare_parts'].append(part_pricing)
+                    result['subtotal'] += part_pricing['total_price']
+                    result['total_parts'] += part_pricing['quantity']
+                    result['breakdown'].append(part_pricing['line_item'])
+                else:
+                    result['warnings'].append(part_pricing['error'])
+                    logger.warning(f"Spare parts pricing error: {part_pricing['error']}")
+            
+            if result['subtotal'] > 0:
+                result['breakdown'].append(f"Spare Parts Subtotal: ${result['subtotal']:,.2f}")
+            
+            logger.info(f"Spare parts pricing calculated: {result['total_parts']} parts, ${result['subtotal']:,.2f}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Spare parts pricing calculation failed: {str(e)}")
+            return {
+                'spare_parts': [],
+                'subtotal': 0.0,
+                'total_parts': 0,
+                'breakdown': [f"ERROR: {str(e)}"],
+                'warnings': [f"Spare parts calculation failed: {str(e)}"],
+                'success': False,
+                'error': str(e)
+            }
+    
+    def calculate_complete_quote_pricing(self, 
+                                       model_code: str, 
+                                       voltage: str, 
+                                       material_code: str, 
+                                       probe_length: float, 
+                                       option_codes: Optional[List[str]] = None, 
+                                       insulator_code: Optional[str] = None, 
+                                       connection_info: Optional[Dict[str, str]] = None,
+                                       spare_parts_list: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """
+        Calculate complete quote pricing including products and spare parts
+        
+        Args:
+            model_code: Product model
+            voltage: Voltage specification
+            material_code: Material code
+            probe_length: Probe length in inches
+            option_codes: List of option codes
+            insulator_code: Insulator material code
+            connection_info: Process connection details
+            spare_parts_list: List of spare parts with quantities and specifications
+            
+        Returns:
+            Dict containing complete quote pricing breakdown
+        """
+        try:
+            logger.info(f"Calculating complete quote pricing for {model_code} with {len(spare_parts_list or [])} spare parts")
+            
+            # Calculate main product pricing
+            product_pricing = self.calculate_complete_pricing(
+                model_code=model_code,
+                voltage=voltage,
+                material_code=material_code,
+                probe_length=probe_length,
+                option_codes=option_codes,
+                insulator_code=insulator_code,
+                connection_info=connection_info
+            )
+            
+            # Calculate spare parts pricing
+            spare_parts_pricing = self.calculate_spare_parts_pricing(spare_parts_list or [])
+            
+            # Combine results
+            quote_total = product_pricing['total_price'] + spare_parts_pricing['subtotal']
+            
+            complete_result = {
+                'product_pricing': product_pricing,
+                'spare_parts_pricing': spare_parts_pricing,
+                'quote_total': quote_total,
+                'formatted_total': f'${quote_total:,.2f}',
+                'breakdown': [],
+                'warnings': [],
+                'success': product_pricing['success'] and spare_parts_pricing['success']
+            }
+            
+            # Build combined breakdown
+            complete_result['breakdown'].append("=== PRODUCT PRICING ===")
+            complete_result['breakdown'].extend(product_pricing['breakdown'])
+            
+            if spare_parts_pricing['spare_parts']:
+                complete_result['breakdown'].append("")
+                complete_result['breakdown'].append("=== SPARE PARTS ===")
+                complete_result['breakdown'].extend(spare_parts_pricing['breakdown'])
+            
+            complete_result['breakdown'].append("")
+            complete_result['breakdown'].append(f"QUOTE TOTAL: ${quote_total:,.2f}")
+            
+            # Combine warnings
+            complete_result['warnings'].extend(product_pricing.get('warnings', []))
+            complete_result['warnings'].extend(spare_parts_pricing.get('warnings', []))
+            
+            logger.info(f"Complete quote pricing calculated: ${quote_total:,.2f}")
+            
+            return complete_result
+            
+        except Exception as e:
+            logger.error(f"Complete quote pricing calculation failed: {str(e)}")
+            return {
+                'product_pricing': {'total_price': 0.0, 'success': False},
+                'spare_parts_pricing': {'subtotal': 0.0, 'success': False},
+                'quote_total': 0.0,
+                'formatted_total': '$0.00',
+                'breakdown': [f"ERROR: {str(e)}"],
+                'warnings': [f"Quote calculation failed: {str(e)}"],
+                'success': False,
+                'error': str(e)
+            }
+    
+    def get_spare_parts_recommendations(self, model_code: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get recommended spare parts for a model with pricing"""
+        try:
+            recommendations = self.spare_parts_manager.get_recommended_spare_parts(model_code, limit)
+            
+            # Add quick pricing for each recommendation
+            for part in recommendations:
+                pricing = self.spare_parts_manager.calculate_spare_part_quote(part['part_number'], 1)
+                if 'error' not in pricing:
+                    part['unit_price'] = pricing['unit_price']
+                    part['formatted_price'] = f"${pricing['unit_price']:,.2f}"
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Failed to get spare parts recommendations: {str(e)}")
+            return []
+    
+    def validate_spare_parts_configuration(self, spare_parts_list: List[Dict[str, Any]], model_code: str) -> Dict[str, Any]:
+        """Validate spare parts configuration for compatibility and requirements"""
+        try:
+            result = {
+                'valid': True,
+                'errors': [],
+                'warnings': [],
+                'validated_parts': []
+            }
+            
+            for part_item in spare_parts_list:
+                validation = self.spare_parts_manager.validate_spare_part_order(
+                    part_number=part_item['part_number'],
+                    model_code=model_code,
+                    specifications=part_item.get('specifications', {})
+                )
+                
+                if not validation['valid']:
+                    result['valid'] = False
+                    result['errors'].extend(validation.get('errors', []))
+                
+                result['warnings'].extend(validation.get('warnings', []))
+                result['validated_parts'].append({
+                    'part_number': part_item['part_number'],
+                    'validation': validation
+                })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Spare parts validation failed: {str(e)}")
+            return {
+                'valid': False,
+                'errors': [f"Validation failed: {str(e)}"],
+                'warnings': [],
+                'validated_parts': []
+            }
 
 
 # Convenience function for backward compatibility
