@@ -330,3 +330,9 @@
 2025-07-08 01:06:53 - core.pricing_engine - INFO - Pricing calculated successfully: $1290.00
 2025-07-08 01:06:53 - core.pricing_engine - INFO - Calculating pricing for FS10000-115VAC-S-6"
 2025-07-08 01:06:53 - core.pricing_engine - INFO - Pricing calculated successfully: $2095.00
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Calculating pricing for LS2000-115VAC-H-10"
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Pricing calculated successfully: $565.00
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Calculating pricing for LS2000-115VAC-S-10"
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Pricing calculated successfully: $495.00
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Calculating pricing for LS2000-115VAC-H-10"
+2025-07-08 01:16:48 - core.pricing_engine - INFO - Pricing calculated successfully: $565.00

@@ -153,11 +153,34 @@ class QuoteGenerator:
             ins_p.add_run(f"{ins.get('material_name', 'N/A')}\n")
             ins_p.add_run(f"Length: ").bold = True
             ins_p.add_run(f"{ins.get('length', 'N/A')}\"")
+            
+            # Add base length if different from actual length
+            base_length = data.get('base_insulator_length')
+            if base_length and ins.get('length') != base_length:
+                ins_p.add_run(f"\nBase Length: ").bold = True
+                ins_p.add_run(f"{base_length:.1f}\"")
         else:
             ins_p.add_run(f"Material: ").bold = True
             ins_p.add_run(f"{data.get('insulator_material', 'N/A')}\n")
             ins_p.add_run(f"Length: ").bold = True
-            ins_p.add_run(f"{data.get('insulator_length', 'N/A')}\"")
+            actual_length = data.get('insulator_length', 'N/A')
+            ins_p.add_run(f"{actual_length}\"")
+            
+            # Add base length information
+            base_length = data.get('base_insulator_length')
+            if base_length:
+                ins_p.add_run(f"\nBase Length: ").bold = True
+                ins_p.add_run(f"{base_length:.1f}\"")
+                
+                # Add explanation of base length calculation
+                probe_length = data.get('probe_length', 0)
+                if probe_length >= 8.0:
+                    rule = "Probe ≥8\": Base = 4\""
+                elif probe_length >= 5.0:
+                    rule = "Probe 5-7\": Base = 2\""
+                else:
+                    rule = "Probe ≤4\": Base = 1\""
+                ins_p.add_run(f" ({rule})")
         
         # Operating Limits
         doc.add_heading('Operating Limits', 3)
@@ -248,7 +271,8 @@ if __name__ == "__main__":
             {'code': 'VR', 'name': 'Vibration Resistance'}
         ],
         'warnings': ['This is a test warning'],
-        'errors': []
+        'errors': [],
+        'base_insulator_length': 4.0 # Added for testing base length
     }
     
     generator = QuoteGenerator()

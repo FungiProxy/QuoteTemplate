@@ -326,6 +326,19 @@ class PartNumberParser:
         # Probe material name
         probe_material = result.get('probe_material', 'S')
         result['probe_material_name'] = self.material_codes.get(probe_material, f"Unknown ({probe_material})")
+        
+        # Calculate base insulator length based on probe length
+        probe_length = result.get('probe_length', 10.0)
+        base_insulator_length = self._calculate_base_insulator_length(probe_length)
+        result['base_insulator_length'] = base_insulator_length
+        
+        # Add base insulator length to insulator information if present
+        if result.get('insulator'):
+            result['insulator']['base_length'] = base_insulator_length
+        else:
+            # If no explicit insulator, use base length as actual length
+            result['insulator_length'] = base_insulator_length
+            result['insulator_base_length'] = base_insulator_length
     
     def _calculate_pricing(self, result: Dict[str, Any]):
         """Calculate pricing for the parsed part number"""
@@ -431,6 +444,7 @@ class PartNumberParser:
             'probe_length': parsed_part.get('probe_length', ''),
             'process_connection': self._format_connection_display(parsed_part),
             'insulator': self._format_insulator_display(parsed_part),
+            'base_insulator_length': parsed_part.get('base_insulator_length', 4.0),
             'housing': parsed_part.get('housing_type', ''),
             'output': parsed_part.get('output_type', ''),
             'max_temperature': parsed_part.get('max_temperature', ''),
@@ -493,13 +507,27 @@ class PartNumberParser:
         """Format insulator for display"""
         if parsed_part.get('insulator'):
             ins = parsed_part['insulator']
-            return f"{ins['length']:.1f}\" {ins['material_name']}"
+            actual_length = ins['length']
+            base_length = ins.get('base_length', parsed_part.get('base_insulator_length', 4.0))
+            material_name = ins['material_name']
+            
+            # Show both actual and base length if they differ
+            if actual_length != base_length:
+                return f"{actual_length:.1f}\" {material_name} (Base: {base_length:.1f}\")"
+            else:
+                return f"{actual_length:.1f}\" {material_name}"
         else:
             # Use defaults
             material = parsed_part.get('insulator_material', 'U')
             material_name = self.insulator_codes.get(material, material)
-            length = parsed_part.get('insulator_length', 4.0)
-            return f"{length:.1f}\" {material_name}"
+            base_length = parsed_part.get('base_insulator_length', 4.0)
+            actual_length = parsed_part.get('insulator_length', base_length)
+            
+            # Show both actual and base length if they differ
+            if actual_length != base_length:
+                return f"{actual_length:.1f}\" {material_name} (Base: {base_length:.1f}\")"
+            else:
+                return f"{actual_length:.1f}\" {material_name}"
     
     def _format_options_display(self, parsed_part: Dict[str, Any]) -> List[str]:
         """Format options for display"""
@@ -508,6 +536,28 @@ class PartNumberParser:
             options.append(f"{option['code']}: {option['name']}")
         
         return options
+
+    def _calculate_base_insulator_length(self, probe_length: float) -> float:
+        """
+        Calculate base insulator length based on probe length for quote templates.
+        
+        Rules:
+        - Probe length >= 8": Base insulator length = 4"
+        - Probe length 5-7": Base insulator length = 2" 
+        - Probe length <= 4": Base insulator length = 1"
+        
+        Args:
+            probe_length: Probe length in inches
+            
+        Returns:
+            Base insulator length in inches
+        """
+        if probe_length >= 8.0:
+            return 4.0
+        elif probe_length >= 5.0:
+            return 2.0
+        else:
+            return 1.0
 
 # Test the parser if run directly
 if __name__ == "__main__":

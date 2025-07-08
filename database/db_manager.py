@@ -233,6 +233,37 @@ class DatabaseManager:
         
         return num_adders * adder_per_foot
     
+    def _calculate_od_option_foot_pricing(self, model_base_length: float, probe_length: float, adder_per_foot: float) -> float:
+        """
+        Calculate 3/4"OD option stepped foot pricing with strict 12" increments.
+        For 3/4"OD: 11" = first adder, 22" = second adder, 34" = third adder, etc.
+        Every 12" from model base length + 1".
+        """
+        if probe_length <= model_base_length:
+            return 0.0
+        
+        # Calculate thresholds: base + 1", base + 12", base + 24", base + 36", etc.
+        thresholds = []
+        for i in range(10):  # Generate up to 10 thresholds (reasonable limit)
+            if i == 0:
+                threshold = model_base_length + 1.0  # First threshold at base + 1"
+            else:
+                threshold = model_base_length + (12.0 * i)  # Subsequent thresholds every 12"
+            
+            if threshold > 120.0:  # Stop at reasonable upper limit
+                break
+            thresholds.append(threshold)
+        
+        # Count how many thresholds the probe length exceeds
+        num_adders = 0
+        for threshold in thresholds:
+            if probe_length >= threshold:
+                num_adders += 1
+            else:
+                break
+        
+        return num_adders * adder_per_foot
+    
     def calculate_option_cost(self, option_codes: List[str], probe_length: float = 10.0, model_code: Optional[str] = None) -> Dict[str, Any]:
         """Calculate total cost for options with special handling for 3/4"OD probe"""
         total_cost = 0.0
@@ -269,14 +300,14 @@ class DatabaseManager:
                         'price_type': 'fixed'
                     })
             elif code == '3/4"OD':
-                # Special handling for 3/4" OD probe: $175 base + $175 per foot from model base length
+                # Special handling for 3/4" OD probe: $175 base + $175 per foot in strict 12" increments
                 model_info = self.get_model_info(model_code) if model_code else None
                 model_base_length = model_info['base_length'] if model_info else 10.0  # Default to 10" if not found
                 
                 base_cost = 175.0
-                extra_length = max(0, probe_length - model_base_length)  # Only charge for extra length
-                per_foot_cost = (extra_length / 12.0) * 175.0  # Convert extra inches to feet
-                total_od_cost = base_cost + per_foot_cost
+                # Use OD-specific stepped foot pricing: 11"=1st adder, 22"=2nd adder, 34"=3rd adder, etc.
+                stepped_foot_cost = self._calculate_od_option_foot_pricing(model_base_length, probe_length, 175.0)
+                total_od_cost = base_cost + stepped_foot_cost
                 
                 option_details.append({
                     'code': code,
@@ -284,8 +315,8 @@ class DatabaseManager:
                     'price': total_od_cost,
                     'price_type': 'base_plus_per_foot',
                     'base_cost': base_cost,
-                    'per_foot_cost': per_foot_cost,
-                    'extra_length': extra_length,
+                    'per_foot_cost': stepped_foot_cost,
+                    'probe_length_feet': probe_length / 12.0,
                     'model_base_length': model_base_length
                 })
                 total_cost += total_od_cost
@@ -306,10 +337,20 @@ class DatabaseManager:
             'options': option_details
         }
     
-    def calculate_insulator_cost(self, insulator_code: str) -> float:
-        """Calculate insulator cost"""
+    def calculate_insulator_cost(self, insulator_code: str, material_code: Optional[str] = None) -> float:
+        """Calculate insulator cost with material-specific rules"""
         insulator_info = self.get_insulator_info(insulator_code)
-        return insulator_info['price_adder'] if insulator_info else 0.0
+        if not insulator_info:
+            return 0.0
+        
+        cost = insulator_info['price_adder']
+        
+        # Special rule: If probe material is 'h', teflon insulation adder is not applied
+        if (material_code and material_code.upper() == 'H' and 
+            insulator_code.upper() == 'TEF'):
+            return 0.0
+        
+        return cost
     
     def calculate_total_price(self, model_code: str, voltage: str, material_code: str, 
                             probe_length: float, option_codes: Optional[List[str]] = None, 
@@ -331,7 +372,7 @@ class DatabaseManager:
         # Insulator pricing
         insulator_cost = 0.0
         if insulator_code:
-            insulator_cost = self.calculate_insulator_cost(insulator_code)
+            insulator_cost = self.calculate_insulator_cost(insulator_code, material_code)
         
         # Process connection pricing
         connection_cost = 0.0

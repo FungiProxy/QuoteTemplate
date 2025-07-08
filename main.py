@@ -189,7 +189,7 @@ class BabbittQuoteGenerator:
             messagebox.showerror("Error", f"Failed to parse part number:\n{str(e)}")
     
     def display_results(self, data: Dict[str, Any]):
-        """Display parsed results in the text area"""
+        """Display ALL parsed results and calculated data in the text area"""
         self.results_text.delete(1.0, tk.END)
         
         if data.get('error'):
@@ -197,120 +197,201 @@ class BabbittQuoteGenerator:
             return
         
         # Header
-        self.results_text.insert(tk.END, "=" * 60 + "\n")
-        self.results_text.insert(tk.END, f"QUOTE CONFIGURATION FOR: {data.get('original_part_number', 'N/A')}\n")
-        self.results_text.insert(tk.END, "=" * 60 + "\n\n")
+        self.results_text.insert(tk.END, "=" * 80 + "\n")
+        self.results_text.insert(tk.END, f"COMPLETE PART NUMBER ANALYSIS: {data.get('original_part_number', 'N/A')}\n")
+        self.results_text.insert(tk.END, "=" * 80 + "\n\n")
         
-        # Basic specifications
-        self.results_text.insert(tk.END, "BASIC SPECIFICATIONS:\n")
+        # BASIC SPECIFICATIONS SECTION
+        self.results_text.insert(tk.END, "📋 BASIC SPECIFICATIONS:\n")
+        self.results_text.insert(tk.END, "-" * 30 + "\n")
+        self.results_text.insert(tk.END, f"Model:                  {data.get('model', 'N/A')}\n")
+        self.results_text.insert(tk.END, f"Voltage:                {data.get('voltage', 'N/A')}\n")
+        self.results_text.insert(tk.END, f"Housing Type:           {data.get('housing_type', 'N/A')}\n")
+        self.results_text.insert(tk.END, f"Output Type:            {data.get('output_type', 'N/A')}\n\n")
+        
+        # PROBE SPECIFICATIONS SECTION
+        self.results_text.insert(tk.END, "🔬 PROBE SPECIFICATIONS:\n")
+        self.results_text.insert(tk.END, "-" * 30 + "\n")
+        self.results_text.insert(tk.END, f"Material Code:          {data.get('probe_material_code', 'N/A')}\n")
+        self.results_text.insert(tk.END, f"Material Name:          {data.get('probe_material_name', 'N/A')}\n")
+        self.results_text.insert(tk.END, f"Probe Length:           {data.get('probe_length', 'N/A')}\"\n")
+        
+        # Show probe diameter if available
+        if data.get('probe_diameter'):
+            self.results_text.insert(tk.END, f"Probe Diameter:         {data.get('probe_diameter')}\"\n")
+        
+        # Show bent probe info if available  
+        if data.get('bent_probe'):
+            bent = data['bent_probe']
+            self.results_text.insert(tk.END, f"Bent Probe:             {bent.get('angle', 'N/A')}° at {bent.get('distance', 'N/A')}\" from tip\n")
+        
+        self.results_text.insert(tk.END, "\n")
+        
+        # PROCESS CONNECTION SECTION
+        self.results_text.insert(tk.END, "🔧 PROCESS CONNECTION:\n")
         self.results_text.insert(tk.END, "-" * 25 + "\n")
-        self.results_text.insert(tk.END, f"Model:              {data.get('model', 'N/A')}\n")
-        self.results_text.insert(tk.END, f"Voltage:            {data.get('voltage', 'N/A')}\n")
-        self.results_text.insert(tk.END, f"Probe Material:     {data.get('probe_material_name', 'N/A')}\n")
-        self.results_text.insert(tk.END, f"Probe Length:       {data.get('probe_length', 'N/A')}\"\n")
-        self.results_text.insert(tk.END, f"Housing:            {data.get('housing_type', 'N/A')}\n")
-        self.results_text.insert(tk.END, f"Output:             {data.get('output_type', 'N/A')}\n\n")
-        
-        # Process Connection
-        self.results_text.insert(tk.END, "PROCESS CONNECTION:\n")
-        self.results_text.insert(tk.END, "-" * 20 + "\n")
         
         if data.get('process_connection'):
             conn = data['process_connection']
-            self.results_text.insert(tk.END, f"Type:               {conn.get('type', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Size:               {conn.get('size', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Type:                   {conn.get('type', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Size:                   {conn.get('size', 'N/A')}\n")
             if conn.get('rating'):
-                self.results_text.insert(tk.END, f"Rating:             {conn.get('rating', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Material:           {data.get('process_connection_material', 'N/A')}\n")
+                self.results_text.insert(tk.END, f"Rating:                 {conn.get('rating', 'N/A')}\n")
+            if conn.get('material'):
+                self.results_text.insert(tk.END, f"Material:               {conn.get('material', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Display Format:         {conn.get('display', 'N/A')}\n")
         else:
-            self.results_text.insert(tk.END, f"Type:               {data.get('process_connection_type', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Size:               {data.get('process_connection_size', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Material:           {data.get('process_connection_material', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Type:                   {data.get('process_connection_type', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Size:                   {data.get('process_connection_size', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Material:               {data.get('process_connection_material', 'N/A')}\n")
         
         self.results_text.insert(tk.END, "\n")
         
-        # Insulator
-        self.results_text.insert(tk.END, "INSULATOR:\n")
-        self.results_text.insert(tk.END, "-" * 10 + "\n")
+        # INSULATOR SECTION
+        self.results_text.insert(tk.END, "🛡️ INSULATOR SPECIFICATIONS:\n")
+        self.results_text.insert(tk.END, "-" * 35 + "\n")
         
         if data.get('insulator'):
             ins = data['insulator']
-            self.results_text.insert(tk.END, f"Material:           {ins.get('material_name', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Length:             {ins.get('length', 'N/A')}\"\n")
+            self.results_text.insert(tk.END, f"Material Code:          {ins.get('material', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Material Name:          {ins.get('material_name', 'N/A')}\n")
+            self.results_text.insert(tk.END, f"Actual Length:          {ins.get('length', 'N/A')}\"\n")
+            self.results_text.insert(tk.END, f"Base Length:            {ins.get('base_length', data.get('base_insulator_length', 'N/A'))}\"\n")
+            self.results_text.insert(tk.END, f"Display Format:         {ins.get('display', 'N/A')}\n")
         else:
-            self.results_text.insert(tk.END, f"Material:           {data.get('insulator_material', 'N/A')}\n")
-            self.results_text.insert(tk.END, f"Length:             {data.get('insulator_length', 'N/A')}\"\n")
+            self.results_text.insert(tk.END, f"Material Code:          {data.get('insulator_material', 'N/A')}\n")
+            material_name = "Unknown"
+            if data.get('insulator_material'):
+                # Try to get material name from codes
+                material_code = data.get('insulator_material')
+                if material_code == 'U': material_name = "UHMWPE"
+                elif material_code == 'TEF': material_name = "TEFLON"
+                elif material_code == 'DEL': material_name = "DELRIN"
+                elif material_code == 'PEEK': material_name = "PEEK"
+                elif material_code == 'CER': material_name = "CERAMIC"
+            self.results_text.insert(tk.END, f"Material Name:          {material_name}\n")
+            self.results_text.insert(tk.END, f"Actual Length:          {data.get('insulator_length', 'N/A')}\"\n")
+            self.results_text.insert(tk.END, f"Base Length:            {data.get('base_insulator_length', 'N/A')}\"\n")
         
         self.results_text.insert(tk.END, "\n")
         
-        # Operating Limits
-        self.results_text.insert(tk.END, "OPERATING LIMITS:\n")
-        self.results_text.insert(tk.END, "-" * 17 + "\n")
-        self.results_text.insert(tk.END, f"Max Temperature:    {data.get('max_temperature', 'N/A')}°F\n")
-        self.results_text.insert(tk.END, f"Max Pressure:       {data.get('max_pressure', 'N/A')} PSI\n")
-        self.results_text.insert(tk.END, f"O-Ring Material:    {data.get('oring_material', 'N/A')}\n\n")
+        # OPERATING LIMITS SECTION
+        self.results_text.insert(tk.END, "⚙️ OPERATING LIMITS:\n")
+        self.results_text.insert(tk.END, "-" * 20 + "\n")
+        self.results_text.insert(tk.END, f"Max Temperature:        {data.get('max_temperature', 'N/A')}°F\n")
+        self.results_text.insert(tk.END, f"Max Pressure:           {data.get('max_pressure', 'N/A')} PSI\n")
+        self.results_text.insert(tk.END, f"O-Ring Material:        {data.get('oring_material', 'N/A')}\n\n")
         
-        # Options
+        # OPTIONS SECTION
         options = data.get('options', [])
         if options:
-            self.results_text.insert(tk.END, "OPTIONS:\n")
-            self.results_text.insert(tk.END, "-" * 8 + "\n")
+            self.results_text.insert(tk.END, "🔧 OPTIONS & MODIFIERS:\n")
+            self.results_text.insert(tk.END, "-" * 25 + "\n")
             for option in options:
                 self.results_text.insert(tk.END, f"• {option.get('code', 'N/A')}: {option.get('name', 'N/A')}\n")
+                if option.get('description'):
+                    self.results_text.insert(tk.END, f"  Description: {option['description']}\n")
             self.results_text.insert(tk.END, "\n")
         
-        # Warnings
+        # INTERNAL DATA SECTION (show raw parsed values)
+        self.results_text.insert(tk.END, "🔍 INTERNAL PARSING DATA:\n")
+        self.results_text.insert(tk.END, "-" * 30 + "\n")
+        
+        # Show all the internal fields that might be useful for debugging
+        internal_fields = [
+            'probe_material', 'insulator_material', 'process_connection_type', 
+            'process_connection_size', 'process_connection_material',
+            'insulator_length', 'option_codes', 'modifier_codes'
+        ]
+        
+        for field in internal_fields:
+            if field in data:
+                value = data[field]
+                if isinstance(value, list):
+                    value = ', '.join(str(v) for v in value) if value else 'None'
+                self.results_text.insert(tk.END, f"{field:<25}: {value}\n")
+        
+        self.results_text.insert(tk.END, "\n")
+        
+        # WARNINGS SECTION
         warnings = data.get('warnings', [])
         if warnings:
             self.results_text.insert(tk.END, "⚠️  WARNINGS:\n")
-            self.results_text.insert(tk.END, "-" * 11 + "\n")
+            self.results_text.insert(tk.END, "-" * 12 + "\n")
             for warning in warnings:
                 self.results_text.insert(tk.END, f"• {warning}\n")
             self.results_text.insert(tk.END, "\n")
         
-        # Errors
+        # ERRORS SECTION
         errors = data.get('errors', [])
         if errors:
-            self.results_text.insert(tk.END, "❌ ERRORS:\n")
-            self.results_text.insert(tk.END, "-" * 9 + "\n")
+            self.results_text.insert(tk.END, "❌ CONFIGURATION ERRORS:\n")
+            self.results_text.insert(tk.END, "-" * 25 + "\n")
             for error in errors:
                 self.results_text.insert(tk.END, f"• {error}\n")
             self.results_text.insert(tk.END, "\n")
         
-        # Pricing Information
+        # COMPREHENSIVE PRICING SECTION
         pricing = data.get('pricing', {})
         if pricing and pricing.get('success', True):
-            self.results_text.insert(tk.END, "💰 PRICING BREAKDOWN:\n")
-            self.results_text.insert(tk.END, "-" * 19 + "\n")
+            self.results_text.insert(tk.END, "💰 COMPREHENSIVE PRICING BREAKDOWN:\n")
+            self.results_text.insert(tk.END, "-" * 40 + "\n")
             
-            # Show individual pricing components
+            # Main pricing components
             if pricing.get('base_price', 0) > 0:
-                self.results_text.insert(tk.END, f"Base Price:         ${pricing['base_price']:.2f}\n")
+                self.results_text.insert(tk.END, f"Base Price:             ${pricing['base_price']:.2f}\n")
+            if pricing.get('material_cost', 0) > 0:
+                self.results_text.insert(tk.END, f"Material Cost:          ${pricing['material_cost']:.2f}\n")
             if pricing.get('length_cost', 0) > 0:
-                self.results_text.insert(tk.END, f"Length Cost:        ${pricing['length_cost']:.2f}\n")
+                self.results_text.insert(tk.END, f"Length Cost:            ${pricing['length_cost']:.2f}\n")
             if pricing.get('length_surcharge', 0) > 0:
-                self.results_text.insert(tk.END, f"Length Surcharge:   ${pricing['length_surcharge']:.2f}\n")
+                self.results_text.insert(tk.END, f"Length Surcharge:       ${pricing['length_surcharge']:.2f}\n")
             if pricing.get('option_cost', 0) > 0:
-                self.results_text.insert(tk.END, f"Options:            ${pricing['option_cost']:.2f}\n")
+                self.results_text.insert(tk.END, f"Options Cost:           ${pricing['option_cost']:.2f}\n")
             if pricing.get('insulator_cost', 0) > 0:
-                self.results_text.insert(tk.END, f"Insulator:          ${pricing['insulator_cost']:.2f}\n")
+                self.results_text.insert(tk.END, f"Insulator Cost:         ${pricing['insulator_cost']:.2f}\n")
             if pricing.get('connection_cost', 0) > 0:
-                self.results_text.insert(tk.END, f"Process Connection: ${pricing['connection_cost']:.2f}\n")
+                self.results_text.insert(tk.END, f"Process Connection:     ${pricing['connection_cost']:.2f}\n")
             
-            self.results_text.insert(tk.END, "-" * 19 + "\n")
-            self.results_text.insert(tk.END, f"TOTAL PRICE:        ${pricing.get('total_price', 0):.2f}\n\n")
+            # Show any special pricing notes
+            if pricing.get('material_h_teflon_rule_applied'):
+                self.results_text.insert(tk.END, "Special Rule Applied:   Material H + Teflon (no insulator adder)\n")
+            
+            self.results_text.insert(tk.END, "-" * 40 + "\n")
+            self.results_text.insert(tk.END, f"TOTAL PRICE:            ${pricing.get('total_price', 0):.2f}\n")
             
             # Show detailed breakdown if available
             breakdown = pricing.get('breakdown', [])
             if breakdown:
-                self.results_text.insert(tk.END, "Detailed Breakdown:\n")
+                self.results_text.insert(tk.END, "\nDetailed Pricing Breakdown:\n")
                 for item in breakdown:
                     self.results_text.insert(tk.END, f"  {item}\n")
-                self.results_text.insert(tk.END, "\n")
+            
+            self.results_text.insert(tk.END, "\n")
+        
+        # VALIDATION STATUS
+        self.results_text.insert(tk.END, "✅ VALIDATION STATUS:\n")
+        self.results_text.insert(tk.END, "-" * 20 + "\n")
+        
+        status = "VALID" if not errors else "INVALID"
+        color_indicator = "✅" if not errors else "❌"
+        
+        self.results_text.insert(tk.END, f"Configuration Status:   {color_indicator} {status}\n")
+        self.results_text.insert(tk.END, f"Warnings Count:         {len(warnings)}\n")
+        self.results_text.insert(tk.END, f"Errors Count:           {len(errors)}\n")
+        
+        if pricing.get('total_price', 0) > 0:
+            self.results_text.insert(tk.END, f"Pricing Status:         ✅ CALCULATED\n")
+        else:
+            self.results_text.insert(tk.END, f"Pricing Status:         ❌ NOT AVAILABLE\n")
+        
+        self.results_text.insert(tk.END, "\n")
         
         # Footer
-        self.results_text.insert(tk.END, "=" * 60 + "\n")
-        self.results_text.insert(tk.END, "Quote generated by Babbitt Quote Generator v1.0\n")
+        self.results_text.insert(tk.END, "=" * 80 + "\n")
+        self.results_text.insert(tk.END, "Complete analysis generated by Babbitt Quote Generator v1.0\n")
+        self.results_text.insert(tk.END, f"All calculated fields and specifications shown above\n")
+        self.results_text.insert(tk.END, "=" * 80 + "\n")
     
     def export_quote(self):
         """Export the current quote to Word document"""

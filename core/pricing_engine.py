@@ -97,7 +97,7 @@ class PricingEngine:
             
             # 4. Calculate insulator pricing
             if insulator_code:
-                insulator_result = self._calculate_insulator_pricing(insulator_code)
+                insulator_result = self._calculate_insulator_pricing(insulator_code, material_code)
                 pricing_result['insulator_cost'] = insulator_result['cost']
                 pricing_result['breakdown'].extend(insulator_result['breakdown'])
             
@@ -325,6 +325,37 @@ class PricingEngine:
         
         return num_adders
     
+    def _calculate_od_option_foot_pricing(self, model_base_length: float, probe_length: float, adder_per_foot: float) -> float:
+        """
+        Calculate 3/4"OD option stepped foot pricing with strict 12" increments.
+        For 3/4"OD: 11" = first adder, 22" = second adder, 34" = third adder, etc.
+        Every 12" from model base length + 1".
+        """
+        if probe_length <= model_base_length:
+            return 0.0
+        
+        # Calculate thresholds: base + 1", base + 12", base + 24", base + 36", etc.
+        thresholds = []
+        for i in range(10):  # Generate up to 10 thresholds (reasonable limit)
+            if i == 0:
+                threshold = model_base_length + 1.0  # First threshold at base + 1"
+            else:
+                threshold = model_base_length + (12.0 * i)  # Subsequent thresholds every 12"
+            
+            if threshold > 120.0:  # Stop at reasonable upper limit
+                break
+            thresholds.append(threshold)
+        
+        # Count how many thresholds the probe length exceeds
+        num_adders = 0
+        for threshold in thresholds:
+            if probe_length >= threshold:
+                num_adders += 1
+            else:
+                break
+        
+        return num_adders * adder_per_foot
+    
     def _calculate_option_pricing(self, option_codes: List[str], probe_length: float, model_code: Optional[str] = None) -> Dict[str, Any]:
         """Calculate pricing for all options"""
         result = {
@@ -355,20 +386,19 @@ class PricingEngine:
                         pass
                 
                 elif code == '3/4"OD':
-                    # Special handling for 3/4" OD probe: $175 base + stepped foot adders of $175 each
-                    # Uses same stepped foot logic as material length pricing
-                    # Base length: 10", first adder at 11", then at 22", 34", 46", etc.
+                    # Special handling for 3/4" OD probe: $175 base + $175 per foot in strict 12" increments
+                    # 11" = 1st adder, 22" = 2nd adder, 34" = 3rd adder, etc.
                     model_info = self.db.get_model_info(model_code) if model_code else None
                     model_base_length = model_info['base_length'] if model_info else 10.0  # Default to 10" if not found
                     
                     base_cost = 175.0
-                    # Use stepped foot pricing: $175 per foot adder using same logic as materials
-                    stepped_foot_cost = self._calculate_stepped_foot_pricing(model_base_length, probe_length, 175.0)
+                    # Use OD-specific stepped foot pricing: strict 12" increments from base + 1"
+                    stepped_foot_cost = self._calculate_od_option_foot_pricing(model_base_length, probe_length, 175.0)
                     option_cost = base_cost + stepped_foot_cost
                     option_name = '3/4" Diameter Probe'
                     
                     # Calculate how many foot adders were applied for breakdown
-                    num_adders = self._count_foot_adders(model_base_length, probe_length)
+                    num_adders = int(stepped_foot_cost / 175.0) if stepped_foot_cost > 0 else 0
                     
                     result['options'].append({
                         'code': code,
@@ -404,8 +434,8 @@ class PricingEngine:
         
         return result
     
-    def _calculate_insulator_pricing(self, insulator_code: str) -> Dict[str, Any]:
-        """Calculate insulator pricing"""
+    def _calculate_insulator_pricing(self, insulator_code: str, material_code: str) -> Dict[str, Any]:
+        """Calculate insulator pricing with material-specific rules"""
         result = {
             'cost': 0.0,
             'breakdown': []
@@ -415,7 +445,12 @@ class PricingEngine:
             insulator_info = self.db.get_insulator_info(insulator_code)
             if insulator_info:
                 cost = insulator_info['price_adder']
-                if cost > 0:
+                
+                # Special rule: If probe material is 'h', teflon insulation adder is not applied
+                if material_code.upper() == 'H' and insulator_code.upper() == 'TEF':
+                    result['cost'] = 0.0
+                    result['breakdown'].append(f"Insulator ({insulator_info['name']}): $0.00 (Not applied - Material H)")
+                elif cost > 0:
                     result['cost'] = cost
                     result['breakdown'].append(f"Insulator ({insulator_info['name']}): ${cost:.2f}")
             
