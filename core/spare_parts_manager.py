@@ -6,6 +6,7 @@ Handles spare parts business logic, pricing, and validation
 from typing import Dict, List, Optional, Any, Tuple
 import json
 from database.db_manager import DatabaseManager
+from .spare_parts_parser import SparePartsParser
 
 class SparePartsManager:
     def __init__(self, db_manager: Optional[DatabaseManager] = None):
@@ -35,6 +36,8 @@ class SparePartsManager:
             'fuse': 7,
             'cable': 8
         }
+
+        self.spare_parts_parser = SparePartsParser()
     
     def get_spare_parts_for_model(self, model_code: str, category: Optional[str] = None) -> Dict[str, Any]:
         """Get organized spare parts data for a specific model"""
@@ -324,6 +327,57 @@ class SparePartsManager:
         line += f" @ ${unit_price:.2f} = ${total_price:.2f}"
         
         return line
+    
+    def parse_and_quote_spare_part(self, part_number: str, quantity: int = 1) -> Dict[str, Any]:
+        """Parse a user-input spare part number and generate quote"""
+        
+        # Parse the part number
+        parsed_result = self.spare_parts_parser.parse_spare_part_number(part_number)
+        
+        if not parsed_result['parsed_successfully']:
+            return {
+                'error': 'Unable to parse part number',
+                'details': parsed_result['errors'],
+                'suggestions': self.spare_parts_parser.suggest_part_number_format(part_number)
+            }
+        
+        # Calculate pricing with the parsed information
+        if parsed_result['database_match']:
+            price = parsed_result['pricing_info']['calculated_price']
+            total_price = price * quantity
+            
+            return {
+                'success': True,
+                'parsed_part': parsed_result,
+                'unit_price': price,
+                'quantity': quantity,
+                'total_price': total_price,
+                'line_item_description': self._format_spare_part_description(parsed_result)
+            }
+        else:
+            return {
+                'error': 'Part not found in database',
+                'parsed_part': parsed_result
+            }
+
+    def _format_spare_part_description(self, parsed_result: Dict[str, Any]) -> str:
+        """Format a description for the quote line item"""
+        base_name = parsed_result['database_match']['name']
+        variables = parsed_result['variables']
+        
+        # Add variable specifications to the description
+        specs = []
+        if 'voltage' in variables:
+            specs.append(variables['voltage'])
+        if 'length' in variables:
+            specs.append(f"{variables['length']}\"")
+        if 'material' in variables:
+            specs.append(f"Material: {variables['material']}")
+        
+        if specs:
+            return f"{base_name} ({', '.join(specs)})"
+        else:
+            return base_name
     
     def __enter__(self):
         """Context manager entry"""

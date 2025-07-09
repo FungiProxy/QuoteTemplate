@@ -19,6 +19,7 @@ from config.settings import (
 )
 from core.part_parser import PartNumberParser
 from core.quote_generator import QuoteGenerator
+from core.spare_parts_manager import SparePartsManager
 from .quote_display import QuoteDisplayWidget
 from .dialogs import AboutDialog, SettingsDialog, ExportDialog
 
@@ -29,7 +30,9 @@ class MainWindow:
         self.root = tk.Tk()
         self.parser = PartNumberParser()
         self.quote_generator = QuoteGenerator()
+        self.spare_parts_manager = SparePartsManager()
         self.current_quote_data = None
+        self.spare_parts_list = []  # List to store added spare parts
         
         self.setup_window()
         self.create_menu()
@@ -142,14 +145,84 @@ class MainWindow:
         quantity_entry = ttk.Entry(customer_frame, textvariable=self.quantity_var, width=10)
         quantity_entry.grid(row=0, column=3, sticky=tk.W)
         
+        # Spare Parts section
+        spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
+        spare_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        spare_frame.columnconfigure(1, weight=1)
+        spare_frame.rowconfigure(1, weight=1)
+        
+        # Spare parts entry
+        spare_entry_frame = ttk.Frame(spare_frame)
+        spare_entry_frame.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        spare_entry_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(spare_entry_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.spare_part_var = tk.StringVar()
+        self.spare_part_entry = ttk.Entry(spare_entry_frame, textvariable=self.spare_part_var, font=("Consolas", 10))
+        self.spare_part_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
+        
+        # Quantity for spare part
+        ttk.Label(spare_entry_frame, text="Qty:").grid(row=0, column=2, sticky=tk.W, padx=(0, 5))
+        self.spare_qty_var = tk.StringVar(value="1")
+        spare_qty_entry = ttk.Entry(spare_entry_frame, textvariable=self.spare_qty_var, width=5)
+        spare_qty_entry.grid(row=0, column=3, sticky=tk.W, padx=(0, 10))
+        
+        # Add spare part button
+        self.add_spare_button = ttk.Button(spare_entry_frame, text="Add Spare Part", command=self.add_spare_part)
+        self.add_spare_button.grid(row=0, column=4, padx=(0, 10))
+        
+        # Help button for spare parts
+        self.spare_help_button = ttk.Button(spare_entry_frame, text="Format Help", command=self.show_spare_parts_help)
+        self.spare_help_button.grid(row=0, column=5)
+        
+        # Spare parts list
+        list_frame = ttk.Frame(spare_frame)
+        list_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+        
+        # Treeview for spare parts
+        columns = ("Part Number", "Description", "Quantity", "Unit Price", "Total Price")
+        self.spare_parts_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=4)
+        
+        # Configure columns
+        self.spare_parts_tree.heading("Part Number", text="Part Number")
+        self.spare_parts_tree.heading("Description", text="Description")
+        self.spare_parts_tree.heading("Quantity", text="Qty")
+        self.spare_parts_tree.heading("Unit Price", text="Unit Price")
+        self.spare_parts_tree.heading("Total Price", text="Total Price")
+        
+        self.spare_parts_tree.column("Part Number", width=150)
+        self.spare_parts_tree.column("Description", width=250)
+        self.spare_parts_tree.column("Quantity", width=50)
+        self.spare_parts_tree.column("Unit Price", width=100)
+        self.spare_parts_tree.column("Total Price", width=100)
+        
+        # Scrollbar for spare parts
+        spare_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.spare_parts_tree.yview)
+        self.spare_parts_tree.configure(yscrollcommand=spare_scrollbar.set)
+        
+        self.spare_parts_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        spare_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Spare parts buttons
+        spare_buttons_frame = ttk.Frame(spare_frame)
+        spare_buttons_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        
+        self.remove_spare_button = ttk.Button(spare_buttons_frame, text="Remove Selected", command=self.remove_spare_part)
+        self.remove_spare_button.grid(row=0, column=0, padx=(0, 10))
+        
+        self.clear_spares_button = ttk.Button(spare_buttons_frame, text="Clear All", command=self.clear_spare_parts)
+        self.clear_spares_button.grid(row=0, column=1)
+        
         # Results section
         self.quote_display = QuoteDisplayWidget(main_frame)
-        self.quote_display.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.quote_display.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        status_bar.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
         
         # Store references to main widgets
         self.main_frame = main_frame
@@ -171,6 +244,9 @@ class MainWindow:
         
         # Enter key to parse part number
         self.part_number_entry.bind('<Return>', lambda e: self.parse_part_number())
+        
+        # Enter key to add spare part
+        self.spare_part_entry.bind('<Return>', lambda e: self.add_spare_part())
         
         # Window closing event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -251,6 +327,12 @@ class MainWindow:
         self.quantity_var.set("1")
         self.current_quote_data = None
         self.quote_display.clear_display()
+        
+        # Clear spare parts
+        self.spare_parts_list = []
+        for item in self.spare_parts_tree.get_children():
+            self.spare_parts_tree.delete(item)
+        
         self.status_var.set("Ready for new quote")
     
     def open_quote(self):
@@ -357,6 +439,210 @@ class MainWindow:
     def show_about(self):
         """Show about dialog"""
         dialog = AboutDialog(self.root)
+    
+    def add_spare_part(self):
+        """Add a spare part to the list"""
+        part_number = self.spare_part_var.get().strip()
+        
+        if not part_number:
+            messagebox.showwarning("Input Required", "Please enter a spare part number.")
+            return
+        
+        try:
+            quantity = int(self.spare_qty_var.get() or 1)
+            if quantity <= 0:
+                raise ValueError("Quantity must be positive")
+        except ValueError:
+            messagebox.showerror("Invalid Quantity", "Please enter a valid positive quantity.")
+            return
+        
+        try:
+            self.status_var.set("Adding spare part...")
+            self.root.update()
+            
+            # Parse and quote the spare part
+            result = self.spare_parts_manager.parse_and_quote_spare_part(part_number, quantity)
+            
+            if result.get('success'):
+                # Add to our list
+                spare_part_info = {
+                    'original_part_number': part_number,
+                    'description': result['line_item_description'],
+                    'quantity': quantity,
+                    'unit_price': result['unit_price'],
+                    'total_price': result['total_price'],
+                    'parsed_result': result['parsed_part']
+                }
+                
+                self.spare_parts_list.append(spare_part_info)
+                
+                # Add to treeview
+                self.spare_parts_tree.insert("", "end", values=(
+                    part_number,
+                    result['line_item_description'],
+                    str(quantity),
+                    f"${result['unit_price']:.2f}",
+                    f"${result['total_price']:.2f}"
+                ))
+                
+                # Clear input fields
+                self.spare_part_var.set("")
+                self.spare_qty_var.set("1")
+                
+                # Update status
+                self.status_var.set(f"Added spare part: {part_number}")
+                
+            else:
+                self.status_var.set("Failed to add spare part")
+                error_msg = result.get('error', 'Unknown error')
+                details = result.get('details', [])
+                suggestions = result.get('suggestions', [])
+                
+                msg = f"Failed to add spare part:\n{error_msg}"
+                if details:
+                    msg += f"\n\nDetails: {', '.join(details)}"
+                if suggestions:
+                    msg += f"\n\nSuggestions: {', '.join(suggestions)}"
+                
+                messagebox.showerror("Add Spare Part Failed", msg)
+        
+        except Exception as e:
+            self.status_var.set("Error adding spare part")
+            messagebox.showerror("Error", f"An error occurred while adding spare part:\n{str(e)}")
+    
+    def remove_spare_part(self):
+        """Remove selected spare part from the list"""
+        selection = self.spare_parts_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a spare part to remove.")
+            return
+        
+        try:
+            # Get the item
+            item = selection[0]
+            values = self.spare_parts_tree.item(item)['values']
+            part_number = values[0]
+            
+            # Remove from tree
+            self.spare_parts_tree.delete(item)
+            
+            # Remove from list
+            self.spare_parts_list = [sp for sp in self.spare_parts_list if sp['original_part_number'] != part_number]
+            
+            self.status_var.set(f"Removed spare part: {part_number}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to remove spare part:\n{str(e)}")
+    
+    def clear_spare_parts(self):
+        """Clear all spare parts"""
+        if self.spare_parts_list and not messagebox.askyesno("Clear All", "Are you sure you want to clear all spare parts?"):
+            return
+        
+        # Clear the tree
+        for item in self.spare_parts_tree.get_children():
+            self.spare_parts_tree.delete(item)
+        
+        # Clear the list
+        self.spare_parts_list = []
+        
+        self.status_var.set("All spare parts cleared")
+    
+    def show_spare_parts_help(self):
+        """Show help for spare parts format"""
+        help_window = tk.Toplevel(self.root)
+        help_window.title("Spare Parts Format Help")
+        help_window.geometry("600x500")
+        help_window.transient(self.root)
+        help_window.grab_set()
+        
+        # Center the window
+        help_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 300
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 250
+        help_window.geometry(f"600x500+{x}+{y}")
+        
+        # Create content
+        frame = ttk.Frame(help_window, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(frame, text="Spare Parts Format Guide", font=("Arial", 14, "bold")).pack(anchor=tk.W, pady=(0, 10))
+        
+        # Create text widget with scrollbar
+        text_frame = ttk.Frame(frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(text_frame, yscrollcommand=scrollbar.set, wrap=tk.WORD, font=("Consolas", 10))
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        # Add help content
+        help_content = """SPARE PARTS FORMAT GUIDE
+
+Electronics:
+Format: {MODEL}-{VOLTAGE}-E
+Examples:
+  LS2000-115VAC-E   → LS2000 Electronics (115VAC)
+  LS7000-24VDC-E    → LS7000 Electronics (24VDC)
+  LS8000-230VAC-E   → LS8000 Electronics (230VAC)
+
+Probe Assemblies:
+Format: {MODEL}-{MATERIAL}-{LENGTH}"
+Examples:
+  LS2000-S-10"      → LS2000 Stainless Steel Probe 10"
+  LS7000-H-12"      → LS7000 Halar Coated Probe 12"
+  LS6000-U-4"       → LS6000 UHMWPE Probe 4"
+
+Power Supplies:
+Format: {MODEL}-{VOLTAGE}-PS
+Examples:
+  LS7000-115VAC-PS  → LS7000 Power Supply (115VAC)
+  LT9000-24VDC-BB   → LT9000 BB Power Supply (24VDC)
+
+Receiver Cards:
+Format: {MODEL}-{VOLTAGE}-R
+Examples:
+  LS8000-115VAC-R   → LS8000 Receiver Card (115VAC)
+  LS8000/2-24VDC-R  → LS8000/2 Receiver Card (24VDC)
+
+Transmitters:
+Format: {MODEL}-{SPECS}-T
+Examples:
+  LS8000-HIGH-T     → LS8000 Transmitter (HIGH)
+  LS8000-SIZE-SENS-T → LS8000 Transmitter (SIZE-SENS)
+
+Cards:
+Sensing Card:    {MODEL}-SC     → LS7000-SC
+Dual Point:      {MODEL}-DP     → LS7000/2-DP
+Plugin Card:     {MODEL}-MA     → LT9000-MA
+
+Fuses:
+Format: {MODEL}-FUSE
+Examples:
+  LS7000-FUSE       → LS7000 Fuse ($10.00)
+  LT9000-FUSE       → LT9000 Fuse ($20.00)
+
+Housing:
+Format: {MODEL}-HOUSING
+Examples:
+  LS2000-HOUSING    → LS2000 Housing
+  FS10000-HOUSING   → FS10000 Housing
+
+Valid Voltages: 115VAC, 24VDC, 230VAC, 12VDC
+Valid Materials: S, H, U, T, TS, CPVC, C
+
+Length pricing is automatically calculated for probe assemblies.
+"""
+        
+        text_widget.insert(tk.END, help_content)
+        text_widget.config(state=tk.DISABLED)
+        
+        # Close button
+        ttk.Button(frame, text="Close", command=help_window.destroy).pack(anchor=tk.E)
     
     def on_closing(self):
         """Handle window closing"""
