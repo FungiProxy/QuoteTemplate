@@ -66,7 +66,7 @@
   "T": {
     "name": "Teflon Blind End",
     "description": "Teflon Blind End Probe",
-    "base_price_adder": 60.0,
+    "base_price_adder": 70.0,
     "length_adder_per_foot": 50.0,
     "length_adder_per_inch": 50.0,
     "nonstandard_length_surcharge": 0.0,
@@ -98,7 +98,7 @@
   "U": {
     "name": "UHMWPE Blind End",
     "description": "UHMWPE Blind End Probe",
-    "base_price_adder": 20.0,
+    "base_price_adder": 30.0,
     "length_adder_per_foot": 40.0,
     "length_adder_per_inch": 40.0,
     "nonstandard_length_surcharge": 0.0,

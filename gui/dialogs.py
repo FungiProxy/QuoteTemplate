@@ -13,6 +13,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import APP_NAME, APP_VERSION, COMPANY_NAME, QUOTE_TEMPLATE_PATH
+from database.db_manager import DatabaseManager
 
 class AboutDialog:
     """About dialog for the application"""
@@ -79,6 +80,278 @@ Features:
         close_button.focus()
         self.dialog.bind('<Return>', lambda e: self.dialog.destroy())
         self.dialog.bind('<Escape>', lambda e: self.dialog.destroy())
+
+
+class ShortcutManagerDialog:
+    """Dialog for managing part number shortcuts"""
+    
+    def __init__(self, parent):
+        self.parent = parent
+        self.dialog = tk.Toplevel(parent)
+        self.db_manager = DatabaseManager()
+        self.selected_shortcut = None
+        self.setup_dialog()
+        self.create_content()
+        self.load_shortcuts()
+    
+    def setup_dialog(self):
+        """Setup dialog properties"""
+        self.dialog.title("Manage Part Number Shortcuts")
+        self.dialog.geometry("800x500")
+        self.dialog.resizable(True, True)
+        self.dialog.transient(self.parent)
+        self.dialog.grab_set()
+        
+        # Center the dialog
+        self.dialog.update_idletasks()
+        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - 400
+        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - 250
+        self.dialog.geometry(f"800x500+{x}+{y}")
+    
+    def create_content(self):
+        """Create dialog content"""
+        main_frame = ttk.Frame(self.dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text="Part Number Shortcuts", font=("Arial", 14, "bold"))
+        title_label.pack(pady=(0, 10))
+        
+        # Instructions
+        instructions = "Create shortcuts for frequently used part numbers. Use only letters and numbers for shortcuts."
+        inst_label = ttk.Label(main_frame, text=instructions, font=("Arial", 9), foreground="gray")
+        inst_label.pack(pady=(0, 15))
+        
+        # Main content area
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.columnconfigure(1, weight=0)
+        content_frame.rowconfigure(0, weight=1)
+        
+        # Left side - List of shortcuts
+        list_frame = ttk.LabelFrame(content_frame, text="Existing Shortcuts", padding="10")
+        list_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+        
+        # Treeview for shortcuts
+        columns = ("Shortcut", "Part Number", "Description")
+        self.shortcuts_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=15)
+        
+        # Configure columns
+        self.shortcuts_tree.heading("Shortcut", text="Shortcut")
+        self.shortcuts_tree.heading("Part Number", text="Part Number")
+        self.shortcuts_tree.heading("Description", text="Description")
+        
+        self.shortcuts_tree.column("Shortcut", width=100, minwidth=80)
+        self.shortcuts_tree.column("Part Number", width=200, minwidth=150)
+        self.shortcuts_tree.column("Description", width=250, minwidth=200)
+        
+        # Scrollbars for treeview
+        v_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.shortcuts_tree.yview)
+        h_scrollbar = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL, command=self.shortcuts_tree.xview)
+        self.shortcuts_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        self.shortcuts_tree.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        # Bind selection event
+        self.shortcuts_tree.bind("<<TreeviewSelect>>", self.on_shortcut_select)
+        
+        # Right side - Add/Edit form
+        form_frame = ttk.LabelFrame(content_frame, text="Add/Edit Shortcut", padding="10")
+        form_frame.grid(row=0, column=1, sticky="nsew")
+        form_frame.columnconfigure(1, weight=1)
+        
+        # Shortcut entry
+        ttk.Label(form_frame, text="Shortcut:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 5))
+        self.shortcut_var = tk.StringVar()
+        self.shortcut_entry = ttk.Entry(form_frame, textvariable=self.shortcut_var, width=20)
+        self.shortcut_entry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
+        
+        # Add validation for alphanumeric only
+        def validate_shortcut(*args):
+            current = self.shortcut_var.get()
+            # Only allow letters and numbers
+            filtered = ''.join(c for c in current if c.isalnum())
+            if current != filtered:
+                self.shortcut_var.set(filtered)
+        
+        self.shortcut_var.trace('w', validate_shortcut)
+        
+        # Part number entry
+        ttk.Label(form_frame, text="Part Number:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 5))
+        self.part_number_var = tk.StringVar()
+        self.part_number_entry = ttk.Entry(form_frame, textvariable=self.part_number_var, width=30)
+        self.part_number_entry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
+        
+        # Description entry
+        ttk.Label(form_frame, text="Description:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 15))
+        self.description_var = tk.StringVar()
+        self.description_entry = ttk.Entry(form_frame, textvariable=self.description_var, width=30)
+        self.description_entry.grid(row=2, column=1, sticky="ew", pady=(0, 15))
+        
+        # Buttons
+        button_frame = ttk.Frame(form_frame)
+        button_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        button_frame.columnconfigure(0, weight=1)
+        
+        self.add_button = ttk.Button(button_frame, text="Add", command=self.add_shortcut)
+        self.add_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        
+        self.update_button = ttk.Button(button_frame, text="Update", command=self.update_shortcut, state="disabled")
+        self.update_button.grid(row=0, column=1, padx=(0, 5), sticky="ew")
+        
+        self.delete_button = ttk.Button(button_frame, text="Delete", command=self.delete_shortcut, state="disabled")
+        self.delete_button.grid(row=0, column=2, sticky="ew")
+        
+        # Clear form button
+        clear_button = ttk.Button(button_frame, text="Clear", command=self.clear_form)
+        clear_button.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        
+        # Key bindings
+        self.dialog.bind('<Escape>', lambda e: self.dialog.destroy())
+        self.shortcut_entry.bind('<Return>', lambda e: self.add_shortcut())
+        self.part_number_entry.bind('<Return>', lambda e: self.add_shortcut())
+        self.description_entry.bind('<Return>', lambda e: self.add_shortcut())
+    
+    def load_shortcuts(self):
+        """Load shortcuts from database"""
+        try:
+            # Clear existing items
+            for item in self.shortcuts_tree.get_children():
+                self.shortcuts_tree.delete(item)
+            
+            # Get shortcuts from database
+            shortcuts = self.db_manager.get_part_number_shortcuts()
+            
+            for shortcut_data in shortcuts:
+                self.shortcuts_tree.insert("", tk.END, values=(
+                    shortcut_data['shortcut'],
+                    shortcut_data['part_number'],
+                    shortcut_data.get('description', '')
+                ))
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load shortcuts: {str(e)}")
+    
+    def on_shortcut_select(self, event):
+        """Handle shortcut selection"""
+        selection = self.shortcuts_tree.selection()
+        if selection:
+            item = self.shortcuts_tree.item(selection[0])
+            values = item['values']
+            
+            # Fill form with selected values
+            self.shortcut_var.set(values[0])
+            self.part_number_var.set(values[1])
+            self.description_var.set(values[2] if len(values) > 2 else '')
+            
+            # Enable update/delete buttons
+            self.update_button.config(state="normal")
+            self.delete_button.config(state="normal")
+            self.add_button.config(state="disabled")
+            
+            self.selected_shortcut = values[0]
+        else:
+            self.clear_form()
+    
+    def clear_form(self):
+        """Clear the form"""
+        self.shortcut_var.set('')
+        self.part_number_var.set('')
+        self.description_var.set('')
+        self.selected_shortcut = None
+        
+        # Reset button states
+        self.add_button.config(state="normal")
+        self.update_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+        
+        # Clear selection
+        self.shortcuts_tree.selection_remove(self.shortcuts_tree.selection())
+    
+    def add_shortcut(self):
+        """Add a new shortcut"""
+        shortcut = self.shortcut_var.get().strip()
+        part_number = self.part_number_var.get().strip()
+        description = self.description_var.get().strip()
+        
+        if not shortcut:
+            messagebox.showerror("Error", "Shortcut cannot be empty")
+            return
+        
+        if not part_number:
+            messagebox.showerror("Error", "Part number cannot be empty")
+            return
+        
+        # Validate shortcut format
+        if not shortcut.isalnum():
+            messagebox.showerror("Error", "Shortcut must contain only letters and numbers")
+            return
+        
+        try:
+            self.db_manager.add_part_number_shortcut(shortcut, part_number, description)
+            self.load_shortcuts()
+            self.clear_form()
+            messagebox.showinfo("Success", f"Shortcut '{shortcut}' added successfully")
+        
+        except Exception as e:
+            if "UNIQUE constraint failed" in str(e):
+                messagebox.showerror("Error", f"Shortcut '{shortcut}' already exists")
+            else:
+                messagebox.showerror("Error", f"Failed to add shortcut: {str(e)}")
+    
+    def update_shortcut(self):
+        """Update the selected shortcut"""
+        if not self.selected_shortcut:
+            return
+        
+        shortcut = self.shortcut_var.get().strip()
+        part_number = self.part_number_var.get().strip()
+        description = self.description_var.get().strip()
+        
+        if not shortcut:
+            messagebox.showerror("Error", "Shortcut cannot be empty")
+            return
+        
+        if not part_number:
+            messagebox.showerror("Error", "Part number cannot be empty")
+            return
+        
+        # Validate shortcut format
+        if not shortcut.isalnum():
+            messagebox.showerror("Error", "Shortcut must contain only letters and numbers")
+            return
+        
+        try:
+            self.db_manager.update_part_number_shortcut(self.selected_shortcut, shortcut, part_number, description)
+            self.load_shortcuts()
+            self.clear_form()
+            messagebox.showinfo("Success", f"Shortcut updated successfully")
+        
+        except Exception as e:
+            if "UNIQUE constraint failed" in str(e):
+                messagebox.showerror("Error", f"Shortcut '{shortcut}' already exists")
+            else:
+                messagebox.showerror("Error", f"Failed to update shortcut: {str(e)}")
+    
+    def delete_shortcut(self):
+        """Delete the selected shortcut"""
+        if not self.selected_shortcut:
+            return
+        
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the shortcut '{self.selected_shortcut}'?"):
+            try:
+                self.db_manager.delete_part_number_shortcut(self.selected_shortcut)
+                self.load_shortcuts()
+                self.clear_form()
+                messagebox.showinfo("Success", "Shortcut deleted successfully")
+            
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete shortcut: {str(e)}")
 
 class SettingsDialog:
     """Settings dialog for application configuration"""

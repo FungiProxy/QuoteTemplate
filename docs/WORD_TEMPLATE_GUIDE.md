@@ -16,13 +16,17 @@ Use the format `{{variable_name}}` for all data that should be replaced. The sys
 
 ### Product Information
 - `{{part_number}}` - Full part number (e.g., "LS2000-115VAC-S-12")
-- `{{quantity}}` - Quantity (usually "1")
+- `{{quantity}}` - Quantity (e.g., "1", "5", "10")
 - `{{unit_price}}` or `{{price}}` - Unit price (e.g., "1,250.00")
 - `{{supply_voltage}}` or `{{voltage}}` - Supply voltage (e.g., "115VAC")
 - `{{probe_length}}` or `{{length}}` - Probe length (e.g., "12")
 
 ### Technical Specifications
 - `{{process_connection_size}}` - Connection size (e.g., "¾"")
+- `{{pc_type}}` - Process connection type (e.g., "NPT", "Flange", "Tri-Clamp")
+- `{{pc_size}}` - Process connection size (e.g., "¾"", "1"", "2"")
+- `{{pc_matt}}` - Process connection material (e.g., "SS", "CS")
+- `{{pc_rate}}` - Process connection rating (e.g., "150", "300" for flanges, empty for others)
 - `{{insulator_material}}` - Insulator material (e.g., "UHMPE", "Teflon")
 - `{{insulator_length}}` - Insulator length (e.g., "4"")
 - `{{probe_material}}` - Probe material (e.g., "316SS", "HALAR")
@@ -30,6 +34,10 @@ Use the format `{{variable_name}}` for all data that should be replaced. The sys
 - `{{max_temperature}}` - Maximum temperature (e.g., "450°F")
 - `{{max_pressure}}` - Maximum pressure (e.g., "300 PSI")
 - `{{output_type}}` - Output type (e.g., "10 Amp SPDT Relay")
+
+### Pricing Information
+- `{{length_adder}}` - Length adder cost (e.g., "25.00")
+- `{{adder_per}}` - Length adder unit (e.g., "per foot", "per inch", "none")
 
 ### Company Information (Pre-filled)
 - `{{company_contact}}` - "John Nicholosi"

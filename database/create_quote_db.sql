@@ -160,6 +160,30 @@ CREATE TABLE spare_parts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 11. PART_NUMBER_SHORTCUTS - User-defined shortcuts for common part numbers
+CREATE TABLE part_number_shortcuts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shortcut TEXT NOT NULL UNIQUE,
+    part_number TEXT NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_shortcut_alphanumeric CHECK (shortcut GLOB '[a-zA-Z0-9]*' AND LENGTH(shortcut) > 0)
+);
+
+-- 12. EMPLOYEES - Employee information for quote attribution
+CREATE TABLE employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    work_email TEXT NOT NULL UNIQUE,
+    work_phone TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_email_format CHECK (work_email LIKE '%_@_%._%')
+);
+
 -- INDEXES for performance
 CREATE INDEX idx_product_models_model ON product_models(model_number);
 CREATE INDEX idx_materials_code ON materials(code);
@@ -175,6 +199,9 @@ CREATE INDEX idx_quotes_number ON quotes(quote_number);
 CREATE INDEX idx_quote_items_quote ON quote_items(quote_id);
 CREATE INDEX idx_spare_parts_part_number ON spare_parts(part_number);
 CREATE INDEX idx_spare_parts_category ON spare_parts(category);
+CREATE INDEX idx_part_number_shortcuts_shortcut ON part_number_shortcuts(shortcut);
+CREATE INDEX idx_employees_email ON employees(work_email);
+CREATE INDEX idx_employees_active ON employees(is_active);
 
 -- POPULATE BASE MODELS
 INSERT INTO product_models (model_number, description, base_price, base_length, default_voltage, default_material, default_insulator, default_process_connection_type, default_process_connection_material, default_process_connection_size, max_temp_rating, max_pressure, housing_type, output_type, application_notes) VALUES
@@ -194,8 +221,8 @@ INSERT INTO product_models (model_number, description, base_price, base_length, 
 INSERT INTO materials (code, name, description, base_price_adder, material_base_length, length_adder_per_foot, length_adder_per_inch, nonstandard_length_surcharge, max_length_with_coating, compatible_models) VALUES
 ('S', '316 Stainless Steel', '316 Stainless Steel Probe', 0.00, 10.0, 45.00, 0.00, 0.00, 999.0, 'ALL'),
 ('H', 'Halar Coated', 'Halar Coated Probe', 110.00, 10.0, 110.00, 0.00, 300.00, 999.0, 'ALL'),
-('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 20.00, 4.0, 0.00, 40.00, 0.00, 999.0, 'ALL'),
-('T', 'Teflon Blind End', 'Teflon Blind End Probe', 60.00, 4.0, 0.00, 50.00, 0.00, 999.0, 'ALL'),
+('U', 'UHMWPE Blind End', 'UHMWPE Blind End Probe', 30.00, 4.0, 0.00, 40.00, 0.00, 999.0, 'ALL'),
+('T', 'Teflon Blind End', 'Teflon Blind End Probe', 70.00, 4.0, 0.00, 50.00, 0.00, 999.0, 'ALL'),
 ('TS', 'Teflon Sleeve', 'Teflon Sleeve Probe', 80.00, 10.0, 60.00, 0.00, 0.00, 999.0, 'ALL'),
 ('CPVC', 'CPVC Blind End', 'CPVC Blind End Probe with Integrated NPT Nipple', 400.00, 4.0, 0.00, 50.00, 0.00, 999.0, 'ALL'),
 ('C', 'Cable', 'Cable Probe', 80.00, 12.0, 45.00, 0.00, 0.00, 999.0, 'ALL'),

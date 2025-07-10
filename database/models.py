@@ -156,6 +156,18 @@ class QuoteData:
     insulator_cost: float = 0.0
     price_breakdown: List[str] = field(default_factory=list)
 
+@dataclass
+class Employee:
+    """Employee data structure"""
+    id: Optional[int] = None
+    first_name: str = ""
+    last_name: str = ""
+    work_email: str = ""
+    work_phone: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 # Helper functions for model operations
 def dict_to_product_model(data: Dict[str, Any]) -> ProductModel:
     """Convert dictionary to ProductModel"""
@@ -205,6 +217,19 @@ def dict_to_option(data: Dict[str, Any]) -> Option:
         compatible_models=data.get('compatible_models'),
         exclusions=data.get('exclusions'),
         created_at=data.get('created_at')
+    )
+
+def dict_to_employee(data: Dict[str, Any]) -> Employee:
+    """Convert dictionary to Employee"""
+    return Employee(
+        id=data.get('id'),
+        first_name=data.get('first_name', ''),
+        last_name=data.get('last_name', ''),
+        work_email=data.get('work_email', ''),
+        work_phone=data.get('work_phone'),
+        is_active=data.get('is_active', True),
+        created_at=data.get('created_at'),
+        updated_at=data.get('updated_at')
     )
 
 # Validation functions

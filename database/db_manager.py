@@ -1094,6 +1094,203 @@ class DatabaseManager:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit"""
         self.disconnect()
+    
+    # Part Number Shortcuts Management
+    def get_part_number_shortcuts(self) -> List[Dict]:
+        """Get all part number shortcuts"""
+        query = """
+        SELECT shortcut, part_number, description, created_at, updated_at
+        FROM part_number_shortcuts
+        ORDER BY shortcut
+        """
+        return self.execute_query(query)
+    
+    def get_part_number_by_shortcut(self, shortcut: str) -> Optional[str]:
+        """Get part number for a given shortcut"""
+        query = "SELECT part_number FROM part_number_shortcuts WHERE shortcut = ?"
+        results = self.execute_query(query, (shortcut,))
+        return results[0]['part_number'] if results else None
+    
+    def add_part_number_shortcut(self, shortcut: str, part_number: str, description: str = "") -> bool:
+        """Add a new part number shortcut"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                INSERT INTO part_number_shortcuts (shortcut, part_number, description)
+                VALUES (?, ?, ?)
+            """, (shortcut, part_number, description))
+            self.connection.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Error adding shortcut: {e}")
+            if self.connection:
+                self.connection.rollback()
+            raise e
+    
+    def update_part_number_shortcut(self, old_shortcut: str, new_shortcut: str, part_number: str, description: str = "") -> bool:
+        """Update an existing part number shortcut"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                UPDATE part_number_shortcuts 
+                SET shortcut = ?, part_number = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE shortcut = ?
+            """, (new_shortcut, part_number, description, old_shortcut))
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error updating shortcut: {e}")
+            if self.connection:
+                self.connection.rollback()
+            raise e
+    
+    def delete_part_number_shortcut(self, shortcut: str) -> bool:
+        """Delete a part number shortcut"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("DELETE FROM part_number_shortcuts WHERE shortcut = ?", (shortcut,))
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error deleting shortcut: {e}")
+            if self.connection:
+                self.connection.rollback()
+            raise e
+    
+    def shortcut_exists(self, shortcut: str) -> bool:
+        """Check if a shortcut already exists"""
+        query = "SELECT 1 FROM part_number_shortcuts WHERE shortcut = ?"
+        results = self.execute_query(query, (shortcut,))
+        return len(results) > 0
+
+    # Employee Management Methods
+    def get_all_employees(self, active_only: bool = True) -> List[Dict]:
+        """Get all employees, optionally filtered by active status"""
+        if active_only:
+            query = "SELECT * FROM employees WHERE is_active = 1 ORDER BY last_name, first_name"
+        else:
+            query = "SELECT * FROM employees ORDER BY last_name, first_name"
+        
+        return self.execute_query(query)
+
+    def get_employee_by_id(self, employee_id: int) -> Optional[Dict]:
+        """Get employee by ID"""
+        query = "SELECT * FROM employees WHERE id = ?"
+        results = self.execute_query(query, (employee_id,))
+        return results[0] if results else None
+
+    def get_employee_by_email(self, email: str) -> Optional[Dict]:
+        """Get employee by email"""
+        query = "SELECT * FROM employees WHERE work_email = ?"
+        results = self.execute_query(query, (email,))
+        return results[0] if results else None
+
+    def add_employee(self, first_name: str, last_name: str, work_email: str, work_phone: str = None) -> bool:
+        """Add a new employee"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        if not self.connection:  # Double check after connect attempt
+            return False
+        
+        try:
+            cursor = self.connection.cursor()
+            query = """
+            INSERT INTO employees (first_name, last_name, work_email, work_phone)
+            VALUES (?, ?, ?, ?)
+            """
+            cursor.execute(query, (first_name, last_name, work_email, work_phone))
+            self.connection.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Error adding employee: {e}")
+            return False
+
+    def update_employee(self, employee_id: int, first_name: str, last_name: str, 
+                       work_email: str, work_phone: str = None, is_active: bool = True) -> bool:
+        """Update an existing employee"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        if not self.connection:  # Double check after connect attempt
+            return False
+        
+        try:
+            cursor = self.connection.cursor()
+            query = """
+            UPDATE employees 
+            SET first_name = ?, last_name = ?, work_email = ?, work_phone = ?, 
+                is_active = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """
+            cursor.execute(query, (first_name, last_name, work_email, work_phone, is_active, employee_id))
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error updating employee: {e}")
+            return False
+
+    def delete_employee(self, employee_id: int) -> bool:
+        """Delete an employee (soft delete by setting is_active = 0)"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        if not self.connection:  # Double check after connect attempt
+            return False
+        
+        try:
+            cursor = self.connection.cursor()
+            query = "UPDATE employees SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            cursor.execute(query, (employee_id,))
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error deleting employee: {e}")
+            return False
+
+    def employee_email_exists(self, email: str, exclude_id: int = None) -> bool:
+        """Check if an email already exists for another employee"""
+        if exclude_id:
+            query = "SELECT COUNT(*) as count FROM employees WHERE work_email = ? AND id != ?"
+            params = (email, exclude_id)
+        else:
+            query = "SELECT COUNT(*) as count FROM employees WHERE work_email = ?"
+            params = (email,)
+        
+        results = self.execute_query(query, params)
+        return results[0]['count'] > 0 if results else False
+
+    def delete_employee_permanently(self, employee_id: int) -> bool:
+        """Permanently delete an employee from the database (hard delete)"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        if not self.connection:
+            return False
+        try:
+            cursor = self.connection.cursor()
+            query = "DELETE FROM employees WHERE id = ?"
+            cursor.execute(query, (employee_id,))
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error permanently deleting employee: {e}")
+            return False
 
 # Test the database connection if run directly
 if __name__ == "__main__":

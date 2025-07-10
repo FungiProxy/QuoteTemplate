@@ -22,7 +22,7 @@ from core.part_parser import PartNumberParser
 from core.quote_generator import QuoteGenerator
 from core.spare_parts_manager import SparePartsManager
 
-from .dialogs import AboutDialog, SettingsDialog, ExportDialog
+from .dialogs import AboutDialog, SettingsDialog, ExportDialog, ShortcutManagerDialog
 
 class MainWindow:
     """Main application window"""
@@ -36,6 +36,7 @@ class MainWindow:
         self.spare_parts_list = []  # List to store added spare parts
         self.quote_items = []  # List to store all quote items (main parts + spare parts)
         self.current_quote_number = None  # Track current quote number
+        self.selected_employee_info = None  # Store selected employee for template use
         
         # Import database manager for quote functionality
         from database.db_manager import DatabaseManager
@@ -94,6 +95,8 @@ class MainWindow:
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Employee Management", command=self.show_employee_manager)
+        tools_menu.add_separator()
         tools_menu.add_command(label="Validate Database", command=self.validate_database)
         tools_menu.add_command(label="Sample Part Numbers", command=self.show_samples)
         
@@ -180,9 +183,9 @@ class MainWindow:
         self.add_to_quote_button = ttk.Button(input_frame, text="Add to Quote", command=self.add_main_part_to_quote)
         self.add_to_quote_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
         
-        # Common P/N button (like samples)
-        self.common_pn_button = ttk.Button(input_frame, text="Common P/N", command=self.show_samples)
-        self.common_pn_button.grid(row=1, column=4, pady=(10, 0))
+        # Custom Shortcuts button
+        self.shortcuts_button = ttk.Button(input_frame, text="Custom Shortcuts", command=self.show_shortcut_manager)
+        self.shortcuts_button.grid(row=1, column=4, pady=(10, 0))
         
         # Spare Parts section (same layout as part number section)
         spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
@@ -261,8 +264,8 @@ class MainWindow:
         quote_buttons_frame = ttk.Frame(quote_summary_frame)
         quote_buttons_frame.grid(row=1, column=0, columnspan=2, sticky="we", pady=(10, 0))
         
-        self.view_quote_button = ttk.Button(quote_buttons_frame, text="View Quote", command=self.view_quote)
-        self.view_quote_button.grid(row=0, column=0, padx=(0, 10))
+        self.export_button = ttk.Button(quote_buttons_frame, text="Export", command=self.export_quote)
+        self.export_button.grid(row=0, column=0, padx=(0, 10))
         
         self.edit_item_button = ttk.Button(quote_buttons_frame, text="Edit Selected", command=self.edit_quote_item)
         self.edit_item_button.grid(row=0, column=1, padx=(0, 10))
@@ -306,14 +309,41 @@ class MainWindow:
         self.root.bind('<Control-e>', lambda e: self.export_quote())
         self.root.bind('<Control-q>', lambda e: self.on_closing())
         
-        # Enter key to parse part number
-        self.part_number_entry.bind('<Return>', lambda e: self.parse_part_number())
+        # Enter key for intelligent part number handling
+        self.part_number_entry.bind('<Return>', lambda e: self.handle_part_number_enter())
         
         # Enter key to add spare part
         self.spare_part_entry.bind('<Return>', lambda e: self.add_spare_part())
         
         # Window closing event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+    
+    def handle_part_number_enter(self):
+        """Handle Enter key press in part number field - Parse first time, Add to Quote second time"""
+        current_input = self.part_number_var.get().strip()
+        
+        if not current_input:
+            messagebox.showwarning("Input Required", "Please enter a part number.")
+            return
+        
+        # Process shortcuts first
+        expanded_input = self.process_shortcut_input(current_input)
+        if expanded_input != current_input:
+            self.part_number_var.set(expanded_input)
+            current_input = expanded_input
+        
+        # Check if we have parsed data and if the current input matches the parsed part number
+        if (self.current_quote_data and 
+            current_input == self.current_quote_data.get('part_number')):
+            # Second Enter - Input matches already parsed data, so add to quote
+            self.add_main_part_to_quote()
+            # Clear the field and reset data
+            self.part_number_var.set("")
+            self.current_quote_data = None
+            self.status_var.set("Part added to quote. Enter new part number.")
+        else:
+            # First Enter or different part number - Parse and price
+            self.parse_part_number()
     
     def parse_part_number(self):
         """Parse the entered part number and display results"""
@@ -327,36 +357,40 @@ class MainWindow:
             self.status_var.set("Parsing part number...")
             self.root.update()
             
-            # Parse the part number
+            # Parse the part number (shortcut processing is handled in handle_part_number_enter)
             parsed_result = self.parser.parse_part_number(part_number)
             
             if parsed_result.get('error'):
                 self.status_var.set("Parse failed")
                 messagebox.showerror("Parse Error", f"Failed to parse part number:\n{parsed_result['error']}")
+                # Clear quote data on parse failure
+                self.current_quote_data = None
                 return
             
             # Generate quote data
             self.current_quote_data = self.parser.get_quote_data(parsed_result)
             
-            # Update status
+            # Update status with hint about second Enter
             total_price = self.current_quote_data.get('total_price', 0)
-            self.status_var.set(f"Part parsed successfully - Total: ${total_price:.2f}")
+            self.status_var.set(f"Part parsed successfully - Total: ${total_price:.2f} (Press Enter again to add to quote)")
             
         except Exception as e:
             self.status_var.set("Error occurred")
             messagebox.showerror("Error", f"An error occurred while parsing:\n{str(e)}")
+            # Clear quote data on error
+            self.current_quote_data = None
     
     def export_quote(self):
         """Export current quote to Word document"""
         print("=== EXPORT_QUOTE FUNCTION CALLED ===")
-        print(f"Current quote data: {self.current_quote_data}")
+        print(f"Quote items: {self.quote_items}")
         
-        if not self.current_quote_data:
-            print("No quote data - showing warning")
-            messagebox.showwarning("No Quote", "Please parse a part number first.")
+        if not self.quote_items:
+            print("No quote items - showing warning")
+            messagebox.showwarning("No Quote", "Please add items to the quote first.")
             return
         
-        print("✓ Quote data validation passed")
+        print("✓ Quote items validation passed")
         
         # Validate initials are entered
         user_initials = self.initials_var.get().strip()
@@ -386,62 +420,67 @@ class MainWindow:
         print(f"✓ Quote number available: {self.current_quote_number}")
         
         try:
-            # Show export dialog with quote number
-            print("Opening ExportDialog...")
-            dialog = ExportDialog(self.root, self.current_quote_data, self.current_quote_number)
+            # Use quote number as default filename
+            default_filename = f"{self.current_quote_number}.docx"
             
-            # Wait for the modal dialog to complete before checking result
-            self.root.wait_window(dialog.dialog)
-            print(f"ExportDialog result: {dialog.result}")
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".docx",
+                filetypes=[("Word documents", "*.docx"), ("All files", "*.*")],
+                title="Export Quote",
+                initialfile=default_filename
+            )
             
-            if dialog.result:
-                export_path = dialog.result.get('file_path')
-                print(f"Export path from dialog: {export_path}")
+            if filename:
+                print(f"Export filename selected: {filename}")
                 
-                if export_path:
-                    self.status_var.set("Exporting quote...")
-                    self.root.update()
+                # Try to use Word template system for the first main item
+                success = False
+                main_items = [item for item in self.quote_items if item.get('type') == 'main']
+                
+                if main_items:
+                    # Use the first main item for template export
+                    main_item = main_items[0]
+                    part_number = main_item.get('part_number', '')
+                    print(f"Using main item for template: {part_number}")
                     
-                    # Generate quote with customer info
-                    customer_info = {
-                        'customer_name': self.company_var.get(), # Changed from self.customer_var.get()
-                        'quantity': int(self.main_qty_var.get() or 1)
-                    }
+                    # Extract data properly from the quote item
+                    quote_data = main_item.get('data', {})
+                    print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
                     
-                    # Use the same export method as the working view quote export
-                    print(f"Starting export process to: {export_path}")
-                    print(f"Current quote data exists: {self.current_quote_data is not None}")
+                    # Set current_quote_data temporarily for the export
+                    original_quote_data = self.current_quote_data
+                    self.current_quote_data = quote_data
                     
-                    # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-                    part_number = self.current_quote_data.get('part_number', '') or self.current_quote_data.get('original_part_number', '')
-                    model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-                    print(f"Extracted part_number: '{part_number}'")
-                    print(f"Extracted model: '{model}'")
-                    
-                    # Get customer information
-                    customer_name = self.company_var.get() or "Customer Name"
-                    contact_name = self.contact_person_var.get() or "Contact Person"
-                    
-                    # Use the generated quote number (guaranteed to exist at this point)
-                    assert self.current_quote_number is not None
-                    quote_number = self.current_quote_number
-                    
-                    # Get pricing info
-                    unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
-                    if unit_price and unit_price > 0:
-                        unit_price = f"{unit_price:.2f}"
-                    else:
-                        unit_price = "Please Contact"
-                    
-                    # Try Word template system first (same as working export)
-                    success = False
+                    # Try Word template export first
                     try:
                         from export.word_template_processor import generate_word_quote
-                        print("✓ Word template processor imported successfully")
-                        print(f"Attempting Word template export for model: {model}")
-                        print(f"Looking for template: {model}_template.docx")
-                        print(f"Using insulator length: {self.current_quote_data.get('base_insulator_length', 4)}\"")
                         
+                        # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+                        model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                        print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                        
+                        # Get customer information
+                        customer_name = self.company_var.get() or "Customer Name"
+                        contact_name = self.contact_person_var.get() or "Contact Person"
+                        
+                        # Use the generated quote number (guaranteed to exist at this point)
+                        assert self.current_quote_number is not None
+                        quote_number = self.current_quote_number
+                        
+                        # Get pricing info
+                        unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
+                        if unit_price and unit_price > 0:
+                            unit_price = f"{unit_price:.2f}"
+                        else:
+                            unit_price = "Please Contact"
+                        
+                        print(f"🚀 Word template export with:")
+                        print(f"   Model: '{model}'")
+                        print(f"   Part Number: '{part_number}'")
+                        print(f"   Customer: '{customer_name}'")
+                        print(f"   Unit Price: '{unit_price}'")
+                        
+                        # Generate the quote using Word template system
                         success = generate_word_quote(
                             model=model,
                             customer_name=customer_name,
@@ -449,28 +488,26 @@ class MainWindow:
                             quote_number=quote_number,
                             part_number=part_number,
                             unit_price=unit_price,
-                            supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
-                            probe_length=str(self.current_quote_data.get('probe_length', 12)),
-                            output_path=export_path,
+                            supply_voltage=quote_data.get('voltage', '115VAC'),
+                            probe_length=str(quote_data.get('probe_length', 12)),
+                            output_path=filename,
                             # Additional specs from parsed data
-                            insulator_material=self._get_insulator_material_name(),
-                            insulator_length=f"{self.current_quote_data.get('base_insulator_length', 4)}\"",
-                            probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
-                            max_temperature=f"{self.current_quote_data.get('max_temperature', 450)}°F",
-                            max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI",
-                            output_type=self.current_quote_data.get('output_type', '10 Amp SPDT Relay'),
-                            process_connection_size=f"{self.current_quote_data.get('process_connection_size', '¾')}\""
+                            insulator=quote_data.get('insulator', ''),
+                            insulator_material=self._extract_insulator_material_name(quote_data),
+                            insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
+                            probe_material=quote_data.get('probe_material_name', '316SS'),
+                            max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
+                            max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
+                            output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
+                            process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
+                            pc_type=quote_data.get('pc_type', 'NPT'),
+                            pc_size=quote_data.get('pc_size', '¾"'),
+                            pc_matt=quote_data.get('pc_matt', 'SS'),
+                            pc_rate=quote_data.get('pc_rate'),
+                            length_adder=quote_data.get('length_adder', 0.0),
+                            adder_per=quote_data.get('adder_per', 'none')
                         )
-                        print(f"Word template export success: {success}")
-                        
-                        if success:
-                            print(f"✓ File created successfully at: {export_path}")
-                            import os
-                            if os.path.exists(export_path):
-                                print(f"✓ File verified to exist: {os.path.getsize(export_path)} bytes")
-                            else:
-                                print(f"❌ File does not exist at: {export_path}")
-                                success = False
+                        print(f"✅ Word template export success: {success}")
                         
                     except Exception as e:
                         print(f"❌ Word template export failed: {e}")
@@ -478,104 +515,67 @@ class MainWindow:
                         traceback.print_exc()
                         success = False
                     
-                    # If Word template failed, try fallback to basic docx generation instead of problematic RTF
+                    # If Word template failed, try RTF fallback
                     if not success:
-                        print("📄 Word template failed, trying basic docx generation...")
-                        try:
-                            from core.quote_generator import QuoteGenerator
-                            fallback_generator = QuoteGenerator()
-                            
-                            # Create a properly formatted data structure for the quote generator
-                            formatted_quote_data = dict(self.current_quote_data)
-                            formatted_quote_data['original_part_number'] = part_number
-                            print(f"Formatted quote data keys: {list(formatted_quote_data.keys())}")
-                            
-                            success = fallback_generator.generate_quote(formatted_quote_data, output_path=export_path)
-                            print(f"Basic docx generation success: {success}")
-                            
-                            if success:
-                                print(f"✓ Fallback file created successfully at: {export_path}")
-                                import os
-                                if os.path.exists(export_path):
-                                    print(f"✓ Fallback file verified to exist: {os.path.getsize(export_path)} bytes")
+                        print("📄 Trying RTF template fallback...")
+                        success = self._try_rtf_template_export(filename)
+                    
+                    # Restore original quote data
+                    self.current_quote_data = original_quote_data
+                
+                if not success:
+                    print("❌ Template export failed, using old quote generator...")
+                    # Create combined data for export
+                    combined_data = {
+                        'type': 'multi_item_quote',
+                        'items': self.quote_items,
+                        'total_items': len(self.quote_items),
+                        'total_price': sum(item.get('total_price', 0) for item in self.quote_items),
+                        'export_timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    
+                    # Export to Word using old system
+                    output_path = self.quote_generator.generate_quote(combined_data, output_path=filename)
+                    success = bool(output_path)
+                
+                if success:
+                    # Save quote to database after successful export
+                    try:
+                        # Calculate total for database save
+                        customer_name = self.company_var.get().strip()
+                        if customer_name and self.current_quote_number:
+                            if self.db_manager.connect():
+                                # At this point current_quote_number is guaranteed to be set
+                                assert self.current_quote_number is not None
+                                
+                                total_quote_value = sum(item.get('total_price', 0) for item in self.quote_items)
+                                
+                                db_save_success = self.db_manager.save_quote(
+                                    quote_number=self.current_quote_number,
+                                    customer_name=customer_name,
+                                    customer_email=self.email_var.get().strip(),
+                                    quote_items=self.quote_items,
+                                    total_price=total_quote_value,
+                                    user_initials=user_initials
+                                )
+                                
+                                if db_save_success:
+                                    self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
                                 else:
-                                    print(f"❌ Fallback file does not exist at: {export_path}")
-                                    success = False
-                        except Exception as fallback_error:
-                            print(f"❌ Basic docx generation also failed: {fallback_error}")
-                            import traceback
-                            traceback.print_exc()
-                            success = False
+                                    self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
+                                
+                                self.db_manager.disconnect()
+                    except Exception as db_error:
+                        print(f"Database save error: {db_error}")
+                        # Don't show error to user since export was successful
                     
-                    if success:
-                        # Save quote to database after successful export (same as working export)
-                        try:
-                            customer_name = self.company_var.get().strip()
-                            if customer_name and self.current_quote_number:
-                                if self.db_manager.connect():
-                                    # Create a quote item for database save
-                                    quote_items = [{
-                                        'type': 'main',
-                                        'part_number': part_number,
-                                        'description': f"LS Switch - {part_number}",
-                                        'quantity': int(self.main_qty_var.get() or 1),
-                                        'unit_price': float(unit_price) if unit_price != "Please Contact" else 0.0,
-                                        'total_price': float(unit_price) * int(self.main_qty_var.get() or 1) if unit_price != "Please Contact" else 0.0,
-                                        'data': self.current_quote_data
-                                    }]
-                                    
-                                    total_price = quote_items[0]['total_price']
-                                    
-                                    db_save_success = self.db_manager.save_quote(
-                                        quote_number=self.current_quote_number,
-                                        customer_name=customer_name,
-                                        customer_email=self.email_var.get().strip(),
-                                        quote_items=quote_items,
-                                        total_price=total_price,
-                                        user_initials=user_initials
-                                    )
-                                    
-                                    if db_save_success:
-                                        self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
-                                    else:
-                                        self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
-                                    
-                                    self.db_manager.disconnect()
-                        except Exception as db_error:
-                            print(f"Database save error: {db_error}")
-                            # Don't show error to user since export was successful
-                        
-                        self.status_var.set(f"Quote exported to {export_path}")
-                        messagebox.showinfo("Export Success", f"Quote exported successfully to:\n{export_path}\n\nQuote Number: {self.current_quote_number}")
-                        
-                        # Open file if requested
-                        if dialog.result.get('open_after_export', False):
-                            try:
-                                import os
-                                os.startfile(export_path)  # Windows
-                            except:
-                                try:
-                                    import subprocess
-                                    subprocess.call(['open', export_path])  # macOS
-                                except:
-                                    try:
-                                        subprocess.call(['xdg-open', export_path])  # Linux
-                                    except:
-                                        pass  # Could not open file
-                    else:
-                        print("❌ Export failed - all methods unsuccessful")
-                        self.status_var.set("Export failed")
-                        messagebox.showerror("Export Failed", 
-                            "Failed to export quote. This might be because:\n\n"
-                            "• python-docx library is not installed\n"
-                            "• File path is invalid\n"
-                            "• Permissions issue\n\n"
-                            "Please check the console for detailed error messages.")
+                    self.status_var.set(f"Quote exported to {filename}")
+                    messagebox.showinfo("Export Success", f"Quote exported successfully to:\n{filename}\n\nQuote Number: {self.current_quote_number}")
                 else:
-                    print("❌ No export path provided from dialog")
-            else:
-                print("❌ ExportDialog was cancelled or returned no result")
-                    
+                    print("❌ Export failed - all methods unsuccessful")
+                    self.status_var.set("Export failed")
+                    messagebox.showerror("Export Error", "Failed to export quote using all available methods.")
+                
         except Exception as e:
             print(f"❌ Exception in export_quote: {e}")
             import traceback
@@ -753,6 +753,16 @@ class MainWindow:
             customer_name = self.company_var.get() or "Customer Name"
             contact_name = self.contact_person_var.get() or "Contact Person"
             
+            # Employee info for template
+            employee_name = ""
+            employee_phone = ""
+            employee_email = ""
+            if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                emp = self.selected_employee_info
+                employee_name = f"{emp['first_name']} {emp['last_name']}"
+                employee_phone = emp.get('work_phone', '')
+                employee_email = emp.get('work_email', '')
+            
             # Generate quote number
             from datetime import datetime
             quote_number = f"Q-{datetime.now().strftime('%Y%m%d-%H%M')}"
@@ -771,6 +781,8 @@ class MainWindow:
             print(f"  Customer: {customer_name}")
             print(f"  Export Path: {export_path}")
             print(f"  Unit Price: {unit_price}")
+            print(f"  Employee Name: {employee_name}")
+            print(f"  Employee Phone: {employee_phone}")
             
             # Generate the quote using Word template system
             print("🚀 Calling generate_word_quote with parameters:")
@@ -790,6 +802,7 @@ class MainWindow:
                 probe_length=str(self.current_quote_data.get('probe_length', 12)),
                 output_path=export_path,
                 # Additional specs from parsed data
+                insulator=self.current_quote_data.get('insulator', ''),
                 insulator_material=self._get_insulator_material_name(),
                 insulator_length=f"{self.current_quote_data.get('base_insulator_length', 4)}\"",
                 probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
@@ -797,10 +810,11 @@ class MainWindow:
                 probe_diameter=self.current_quote_data.get('probe_diameter', '½"'),
                 max_temperature=f"{self.current_quote_data.get('max_temperature', 450)}°F",
                 max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI",
-                output_type=self.current_quote_data.get('output_type', '10 Amp SPDT Relay'),
-                process_connection_size=f"{self.current_quote_data.get('process_connection_size', '¾')}\""
+                # Employee info
+                employee_name=employee_name,
+                employee_phone=employee_phone,
+                employee_email=employee_email,
             )
-            print(f"📋 generate_word_quote returned: {success}")
             
             print(f"Word template export success: {success}")
             if success and os.path.exists(export_path):
@@ -809,9 +823,8 @@ class MainWindow:
                 print(f"File not found after export: {export_path}")
             
             return success
-            
         except Exception as e:
-            print(f"Word template export failed: {e}")
+            print(f"RTF template export failed: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -1006,8 +1019,10 @@ class MainWindow:
             self.db_manager.disconnect()
     
     def clear_part_number(self):
-        """Clear part number entry"""
+        """Clear part number entry and reset parsed data"""
         self.part_number_var.set("")
+        self.current_quote_data = None
+        self.status_var.set("Ready")
         self.part_number_entry.focus()
     
     def clear_results(self):
@@ -1097,6 +1112,53 @@ class MainWindow:
     def show_about(self):
         """Show about dialog"""
         dialog = AboutDialog(self.root)
+    
+    def show_shortcut_manager(self):
+        """Show the shortcut manager dialog"""
+        try:
+            ShortcutManagerDialog(self.root)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open shortcut manager: {str(e)}")
+
+    def show_employee_manager(self):
+        """Show the employee manager dialog"""
+        try:
+            from .employee_manager import EmployeeManagerDialog
+            
+            def on_employee_selected(employee):
+                """Handle employee selection for quote attribution"""
+                # Set the initials field with employee initials
+                initials = f"{employee['first_name'][0]}{employee['last_name'][0]}".upper()
+                self.initials_var.set(initials)
+                # Store the selected employee info for template use
+                self.selected_employee_info = employee
+                # Optionally show a message
+                messagebox.showinfo("Employee Selected", 
+                                  f"Employee {employee['first_name']} {employee['last_name']} selected.\n"
+                                  f"Initials set to: {initials}")
+            
+            dialog = EmployeeManagerDialog(self.root, self.db_manager, on_employee_selected)
+            dialog.run()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open employee manager: {str(e)}")
+    
+    def process_shortcut_input(self, text: str) -> str:
+        """
+        Process input text and expand shortcuts if found.
+        Returns the expanded part number or original text if no shortcut found.
+        """
+        # Check if the input looks like a shortcut (alphanumeric only, no hyphens)
+        if text and text.isalnum():
+            try:
+                # Try to get part number from shortcut
+                expanded_pn = self.db_manager.get_part_number_by_shortcut(text)
+                if expanded_pn:
+                    return expanded_pn
+            except Exception as e:
+                print(f"Error processing shortcut: {e}")
+        
+        # Return original text if not a shortcut or expansion failed
+        return text
     
     def add_spare_part(self):
         """Add a spare part to the list"""
@@ -1295,7 +1357,10 @@ Length pricing is automatically calculated for probe assemblies.
             if quantity <= 0:
                 messagebox.showwarning("Invalid Quantity", "Please enter a valid quantity (greater than 0).")
                 return
-            
+
+            # Ensure the raw data reflects the correct quantity
+            self.current_quote_data['quantity'] = quantity
+
             # Create quote item
             quote_item = {
                 'type': 'main',
@@ -1592,13 +1657,20 @@ Length pricing is automatically calculated for probe assemblies.
                                 probe_length=str(quote_data.get('probe_length', 12)),
                                 output_path=filename,
                                 # Additional specs from parsed data
+                                insulator=quote_data.get('insulator', ''),
                                 insulator_material=self._extract_insulator_material_name(quote_data),
                                 insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
                                 probe_material=quote_data.get('probe_material_name', '316SS'),
                                 max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
                                 max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
                                 output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
-                                process_connection_size=f"{quote_data.get('process_connection_size', '¾')}\""
+                                process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
+                pc_type=quote_data.get('pc_type', 'NPT'),
+                pc_size=quote_data.get('pc_size', '¾"'),
+                pc_matt=quote_data.get('pc_matt', 'SS'),
+                pc_rate=quote_data.get('pc_rate'),
+                length_adder=quote_data.get('length_adder', 0.0),
+                adder_per=quote_data.get('adder_per', 'none')
                             )
                             print(f"✅ Word template export success: {success}")
                             
@@ -1697,7 +1769,16 @@ Length pricing is automatically calculated for probe assemblies.
             self.status_var.set("Parsing spare part...")
             self.root.update()
             
-            # Use spare parts manager to parse the part
+            # First, try to process as a shortcut
+            expanded_spare_part = self.process_shortcut_input(spare_part_number)
+            if expanded_spare_part != spare_part_number:
+                # Shortcut was expanded, update the input field to show the full part number
+                self.spare_part_var.set(expanded_spare_part)
+                self.status_var.set(f"Expanded shortcut '{spare_part_number}' to '{expanded_spare_part}'")
+                self.root.update()
+                spare_part_number = expanded_spare_part
+            
+            # Use spare parts manager to parse the part (original or expanded)
             result = self.spare_parts_manager.parse_and_quote_spare_part(spare_part_number)
             
             if result.get('error'):

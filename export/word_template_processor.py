@@ -171,6 +171,48 @@ class WordTemplateProcessor:
             logger.error(f"Error saving document to {output_path}: {e}")
             return False
 
+def _format_fraction(size_str: str) -> str:
+    """
+    Convert regular fractions to Unicode fractions for better display.
+    
+    Args:
+        size_str: Size string like "3/4"", "1/2"", "1""
+        
+    Returns:
+        Formatted size string with Unicode fractions
+    """
+    if not size_str:
+        return size_str
+    
+    # Remove quotes for processing
+    clean_size = size_str.replace('"', '').replace("'", '')
+    
+    # Convert common fractions to Unicode
+    fraction_map = {
+        '1/2': '½',
+        '1/4': '¼',
+        '3/4': '¾',
+        '1/8': '⅛',
+        '3/8': '⅜',
+        '5/8': '⅝',
+        '7/8': '⅞',
+        '1/3': '⅓',
+        '2/3': '⅔',
+        '1/5': '⅕',
+        '2/5': '⅖',
+        '3/5': '⅗',
+        '4/5': '⅘',
+        '1/6': '⅙',
+        '5/6': '⅚'
+    }
+    
+    # Check if it's a fraction we can convert
+    if clean_size in fraction_map:
+        return fraction_map[clean_size] + '"'
+    
+    # Return original with quotes restored
+    return size_str
+
 def _format_probe_length(probe_length: str) -> str:
     """
     Format probe length to not show decimals for whole numbers.
@@ -201,18 +243,52 @@ def _parse_insulator_for_template(kwargs: Dict[str, Any]) -> Dict[str, str]:
     Returns:
         Dictionary with parsed insulator variables for templates
     """
-    # Get raw insulator data
-    insulator_material = kwargs.get('insulator_material', 'UHMWPE')
-    insulator_length_raw = kwargs.get('insulator_length', '4"')
+    import re
+    
+    # Check if there's a custom insulator specified in the part number
+    insulator_display = kwargs.get('insulator', '')
     max_temp = kwargs.get('max_temperature', '450°F')
     
-    # Parse material name (remove any extra formatting)
-    material = insulator_material.strip()
+    # Parse material name and length from insulator display string
+    # Format examples: "8.0\" Teflon", "4.0\" UHMWPE (Base: 4.0\")"
+    material = 'UHMWPE'  # Default
+    length_num = 4.0     # Default
     
-    # Parse length (extract number from strings like "4\"" or "4 inches")
-    import re
-    length_match = re.search(r'(\d+(?:\.\d+)?)', str(insulator_length_raw))
-    length_num = float(length_match.group(1)) if length_match else 4.0
+    if insulator_display and '"' in insulator_display:
+        # Extract length and material from strings like "8.0\" Teflon" or "4.0\" UHMWPE (Base: 4.0\")"
+        
+        # First, extract the length (number before the first quote)
+        length_match = re.search(r'(\d+(?:\.\d+)?)"', insulator_display)
+        if length_match:
+            length_num = float(length_match.group(1))
+        
+        # Then extract the material name (text after the quote, before any parentheses)
+        material_match = re.search(r'"\s*([^(]+?)(?:\s*\(|$)', insulator_display)
+        if material_match:
+            material = material_match.group(1).strip()
+        else:
+            # Fallback: try to extract material from the whole string
+            parts = insulator_display.split('"')
+            if len(parts) > 1:
+                material_part = parts[1].strip()
+                # Remove any base length information in parentheses
+                if '(' in material_part:
+                    material_part = material_part.split('(')[0].strip()
+                material = material_part
+    
+    # If no custom insulator, use the default insulator_material and insulator_length
+    if not insulator_display:
+        insulator_material = kwargs.get('insulator_material', 'UHMWPE')
+        insulator_length_raw = kwargs.get('insulator_length', '4"')
+        
+        # Parse material name (remove any extra formatting)
+        material = insulator_material.strip()
+        
+        # Parse length (extract number from strings like "4\"" or "4 inches")
+        length_match = re.search(r'(\d+(?:\.\d+)?)', str(insulator_length_raw))
+        length_num = float(length_match.group(1)) if length_match else 4.0
+    
+    # Format length string
     length_str = str(int(length_num)) if length_num == int(length_num) else str(length_num)
     
     # Determine if "Long" should be included (4" or more)
@@ -282,7 +358,7 @@ def generate_word_quote(
             
             # Product information
             'part_number': part_number,
-            'quantity': "1",
+            'quantity': kwargs.get('quantity', "1"),
             'unit_price': unit_price,
             'price': unit_price,  # Alternative name
             'supply_voltage': supply_voltage,
@@ -292,6 +368,10 @@ def generate_word_quote(
             
             # Technical specifications
             'process_connection_size': kwargs.get('process_connection_size', '¾"'),
+            'pc_type': kwargs.get('pc_type', 'NPT'),
+            'pc_size': _format_fraction(kwargs.get('pc_size', '¾"')),
+            'pc_matt': kwargs.get('pc_matt', 'SS'),
+            'pc_rate': kwargs.get('pc_rate'),
             'insulator_material': kwargs.get('insulator_material', 'UHMPE'),
             'insulator_length': kwargs.get('insulator_length', '4"'),
             'probe_material': kwargs.get('probe_material', '316SS'),
@@ -299,18 +379,22 @@ def generate_word_quote(
             'max_temperature': kwargs.get('max_temperature', '450°F'),
             'max_pressure': kwargs.get('max_pressure', '300 PSI'),
             
-                    # Enhanced insulator template variables
-        'ins_material': insulator_vars['material'],
-        'ins_length': insulator_vars['length'], 
-        'ins_long': insulator_vars['long_text'],
-        'ins_temp': insulator_vars['temp_rating'],
-        
-        # Enhanced probe template variables  
-        'probe_size': kwargs.get('probe_diameter', '½"').replace('"', '').replace("'", ''),
-        'probe_material': kwargs.get('probe_material_name', kwargs.get('probe_material', '316SS')),
-        'probe_length': _format_probe_length(probe_length),
-        
-        # Output specifications
+            # Length pricing information
+            'length_adder': kwargs.get('length_adder', 0.0),
+            'adder_per': kwargs.get('adder_per', 'none'),
+            
+            # Enhanced insulator template variables
+            'ins_material': insulator_vars['material'],
+            'ins_length': insulator_vars['length'], 
+            'ins_long': insulator_vars['long_text'],
+            'ins_temp': insulator_vars['temp_rating'],
+            
+            # Enhanced probe template variables  
+            'probe_size': kwargs.get('probe_diameter', '½"').replace('"', '').replace("'", ''),
+            'probe_material': kwargs.get('probe_material_name', kwargs.get('probe_material', '316SS')),
+            'probe_length': _format_probe_length(probe_length),
+            
+            # Output specifications
             'output_type': kwargs.get('output_type', '10 Amp SPDT Relay'),
             
             # Company information

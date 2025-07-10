@@ -23,7 +23,7 @@ class QuoteTemplateFields:
     
     # Product Information
     part_number: str     # Full part number (e.g., "LS2000-115VAC-H-12")
-    quantity: str        # Usually "1"
+    quantity: str        # Quantity (e.g., "1", "5", "10")
     unit_price: str      # Price without $ symbol
     supply_voltage: str  # Operating voltage (e.g., "115VAC", "24VDC")
     

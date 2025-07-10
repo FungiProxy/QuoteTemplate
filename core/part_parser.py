@@ -204,7 +204,7 @@ class PartNumberParser:
                 })
             
             # Check for process connection override
-            elif any(conn in part for conn in ['NPT', 'RF', 'TRICLAMP']):
+            elif any(conn in part for conn in ['NPT', 'RF', 'TC']):
                 result['process_connection'] = self._parse_connection_override(part)
             
             # Check for housing option
@@ -259,7 +259,7 @@ class PartNumberParser:
         }
     
     def _parse_connection_override(self, connection_part: str) -> Dict[str, Any]:
-        """Parse process connection override like '1"NPT' or '2"150#RF'"""
+        """Parse process connection override like '1"NPT' or '2"150#RF' or '2"TC'"""
         
         # NPT pattern: SIZE + NPT
         npt_match = re.match(r'(\d+(?:/\d+)?)"NPT', connection_part)
@@ -282,6 +282,17 @@ class PartNumberParser:
                 'size': size,
                 'rating': rating,
                 'display': f'{size}{rating}RF'
+            }
+        
+        # Tri-Clamp pattern: SIZE + TC
+        triclamp_match = re.match(r'(\d+(?:/\d+)?)"TC', connection_part)
+        if triclamp_match:
+            size = triclamp_match.group(1) + '"'
+            return {
+                'type': 'Tri-Clamp',
+                'size': size,
+                'rating': None,
+                'display': f'{size}TC'
             }
         
         # Default if can't parse
@@ -465,6 +476,48 @@ class PartNumberParser:
         # Get pricing information
         pricing = parsed_part.get('pricing', {})
         
+        # Extract length pricing information from material data
+        material_code = parsed_part.get('probe_material', 'S')
+        material_info = self.db.get_material_info(material_code)
+        
+        # Get length adder and unit from material pricing data
+        length_adder = 0.0
+        adder_per = 'none'
+        
+        if material_info:
+            if material_info.get('length_adder_per_foot', 0) > 0:
+                length_adder = material_info['length_adder_per_foot']
+                adder_per = 'per foot'
+            elif material_info.get('length_adder_per_inch', 0) > 0:
+                length_adder = material_info['length_adder_per_inch']
+                adder_per = 'per inch'
+        
+        # Extract process connection components
+        pc_type = None
+        pc_size = None
+        pc_matt = None
+        pc_rate = None
+        
+        if parsed_part.get('process_connection'):
+            # Use override connection data
+            conn = parsed_part['process_connection']
+            pc_type = conn.get('type', 'NPT')
+            pc_size = conn.get('size', '3/4"')
+            pc_matt = 'SS'  # Default to stainless steel for overrides
+            pc_rate = conn.get('rating')  # Will be None for NPT/Tri-Clamp, "150#" for flanges
+        else:
+            # Use default connection data
+            pc_type = parsed_part.get('process_connection_type', 'NPT')
+            pc_size = parsed_part.get('process_connection_size', '3/4"')
+            raw_matt = parsed_part.get('process_connection_material', 'SS')
+            pc_rate = None  # Default connections don't have ratings
+        
+        # Convert material codes to display names for all connection types
+        if pc_matt in ['S', 'SS', '316SS'] or raw_matt in ['S', 'SS', '316SS']:
+            pc_matt = '316SS'
+        else:
+            pc_matt = raw_matt if 'raw_matt' in locals() else pc_matt
+        
         quote_data = {
             'part_number': parsed_part.get('original_part_number', ''),
             'model': parsed_part.get('model', ''),
@@ -473,6 +526,10 @@ class PartNumberParser:
             'probe_material_name': parsed_part.get('probe_material_name', ''),
             'probe_length': parsed_part.get('probe_length', ''),
             'process_connection': self._format_connection_display(parsed_part),
+            'pc_type': pc_type,
+            'pc_size': pc_size,
+            'pc_matt': pc_matt,
+            'pc_rate': pc_rate,
             'insulator': self._format_insulator_display(parsed_part),
             'base_insulator_length': parsed_part.get('base_insulator_length', 4.0),
             'probe_diameter': parsed_part.get('probe_diameter', '½"'),
@@ -492,7 +549,14 @@ class PartNumberParser:
             'option_cost': pricing.get('option_cost', 0.0),
             'insulator_cost': pricing.get('insulator_cost', 0.0),
             'connection_cost': pricing.get('connection_cost', 0.0),
-            'price_breakdown': self._format_price_breakdown(pricing)
+            'price_breakdown': self._format_price_breakdown(pricing),
+            
+            # Length pricing information for templates
+            'length_adder': length_adder,
+            'adder_per': adder_per,
+            
+            # Quantity (default to 1, can be overridden)
+            'quantity': 1
         }
         
         return quote_data
