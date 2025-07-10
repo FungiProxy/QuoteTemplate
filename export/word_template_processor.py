@@ -397,11 +397,16 @@ def generate_word_quote(
             # Output specifications
             'output_type': kwargs.get('output_type', '10 Amp SPDT Relay'),
             
-            # Company information
-            'company_contact': 'John Nicholosi',
-            'company_phone': '(713) 467-4438',
-            'company_email': 'John@babbitt.us',
+            # Company information (use employee info if provided, otherwise use defaults)
+            'company_contact': kwargs.get('employee_name', 'John Nicholosi'),
+            'company_phone': kwargs.get('employee_phone', '(713) 467-4438'),
+            'company_email': kwargs.get('employee_email', 'John@babbitt.us'),
             'company_website': 'www.babbittinternational.com',
+            
+            # Employee information (for templates that use these specific variables)
+            'employee_name': kwargs.get('employee_name', 'John Nicholosi'),
+            'employee_phone': kwargs.get('employee_phone', '(713) 467-4438'),
+            'employee_email': kwargs.get('employee_email', 'John@babbitt.us'),
             
             # Terms and conditions
             'delivery_terms': 'NET 30 W.A.C.',

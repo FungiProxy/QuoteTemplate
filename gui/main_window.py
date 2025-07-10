@@ -463,6 +463,19 @@ class MainWindow:
                         customer_name = self.company_var.get() or "Customer Name"
                         contact_name = self.contact_person_var.get() or "Contact Person"
                         
+                        # Get employee information for template
+                        employee_name = ""
+                        employee_phone = ""
+                        employee_email = ""
+                        if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                            emp = self.selected_employee_info
+                            employee_name = f"{emp['first_name']} {emp['last_name']}"
+                            employee_phone = emp.get('work_phone', '')
+                            employee_email = emp.get('work_email', '')
+                            print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
+                        else:
+                            print("⚠ No employee selected, using default contact info")
+                        
                         # Use the generated quote number (guaranteed to exist at this point)
                         assert self.current_quote_number is not None
                         quote_number = self.current_quote_number
@@ -505,7 +518,11 @@ class MainWindow:
                             pc_matt=quote_data.get('pc_matt', 'SS'),
                             pc_rate=quote_data.get('pc_rate'),
                             length_adder=quote_data.get('length_adder', 0.0),
-                            adder_per=quote_data.get('adder_per', 'none')
+                            adder_per=quote_data.get('adder_per', 'none'),
+                            # Employee information
+                            employee_name=employee_name,
+                            employee_phone=employee_phone,
+                            employee_email=employee_email
                         )
                         print(f"✅ Word template export success: {success}")
                         
@@ -1628,6 +1645,19 @@ Length pricing is automatically calculated for probe assemblies.
                             customer_name = self.company_var.get() or "Customer Name"
                             contact_name = self.contact_person_var.get() or "Contact Person"
                             
+                            # Get employee information for template
+                            employee_name = ""
+                            employee_phone = ""
+                            employee_email = ""
+                            if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                                emp = self.selected_employee_info
+                                employee_name = f"{emp['first_name']} {emp['last_name']}"
+                                employee_phone = emp.get('work_phone', '')
+                                employee_email = emp.get('work_email', '')
+                                print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
+                            else:
+                                print("⚠ No employee selected, using default contact info")
+                            
                             # Use the generated quote number (guaranteed to exist at this point)
                             assert self.current_quote_number is not None
                             quote_number = self.current_quote_number
@@ -1665,12 +1695,16 @@ Length pricing is automatically calculated for probe assemblies.
                                 max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
                                 output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
                                 process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
-                pc_type=quote_data.get('pc_type', 'NPT'),
-                pc_size=quote_data.get('pc_size', '¾"'),
-                pc_matt=quote_data.get('pc_matt', 'SS'),
-                pc_rate=quote_data.get('pc_rate'),
-                length_adder=quote_data.get('length_adder', 0.0),
-                adder_per=quote_data.get('adder_per', 'none')
+                                pc_type=quote_data.get('pc_type', 'NPT'),
+                                pc_size=quote_data.get('pc_size', '¾"'),
+                                pc_matt=quote_data.get('pc_matt', 'SS'),
+                                pc_rate=quote_data.get('pc_rate'),
+                                length_adder=quote_data.get('length_adder', 0.0),
+                                adder_per=quote_data.get('adder_per', 'none'),
+                                # Employee information
+                                employee_name=employee_name,
+                                employee_phone=employee_phone,
+                                employee_email=employee_email
                             )
                             print(f"✅ Word template export success: {success}")
                             
