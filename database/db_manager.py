@@ -829,6 +829,263 @@ class DatabaseManager:
             print(f"Database test failed: {e}")
             return False
     
+    # ============================================================================
+    # QUOTE MANAGEMENT METHODS
+    # ============================================================================
+    
+    def generate_quote_number(self, user_initials: str) -> str:
+        """
+        Generate quote number in format: InitialsMMDDYYLetter (e.g., ZF070925A)
+        
+        Args:
+            user_initials: User's initials (will be converted to uppercase)
+            
+        Returns:
+            Generated quote number
+        """
+        from datetime import datetime
+        
+        # Ensure uppercase initials
+        user_initials = user_initials.upper()
+        
+        # Get current date in MMDDYY format
+        today = datetime.now()
+        date_str = today.strftime("%m%d%y")
+        
+        # Base quote number pattern
+        base_quote_number = f"{user_initials}{date_str}"
+        
+        # Find existing quotes for this user/date combination
+        query = """
+        SELECT quote_number FROM quotes 
+        WHERE quote_number LIKE ? 
+        ORDER BY quote_number DESC
+        """
+        
+        existing_quotes = self.execute_query(query, (f"{base_quote_number}%",))
+        
+        # Determine next letter
+        if not existing_quotes:
+            # First quote of the day
+            next_letter = 'A'
+        else:
+            # Get the last quote's letter and increment
+            last_quote = existing_quotes[0]['quote_number']
+            if len(last_quote) > len(base_quote_number):
+                last_letter = last_quote[-1]
+                next_letter = chr(ord(last_letter) + 1)
+                
+                # Handle wrap-around if we somehow get past Z
+                if ord(next_letter) > ord('Z'):
+                    next_letter = 'A'  # Reset to A (or could be 'AA', 'AB', etc.)
+            else:
+                next_letter = 'A'
+        
+        return f"{base_quote_number}{next_letter}"
+    
+    def save_quote(self, quote_number: str, customer_name: str, customer_email: str, 
+                   quote_items: List[Dict[str, Any]], total_price: float, 
+                   user_initials: str = "") -> bool:
+        """
+        Save a complete quote to the database
+        
+        Args:
+            quote_number: Quote number
+            customer_name: Customer name
+            customer_email: Customer email  
+            quote_items: List of quote items (main parts + spare parts)
+            total_price: Total quote value
+            user_initials: User initials for tracking
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            if not self.connection:
+                return False
+                
+            cursor = self.connection.cursor()
+            
+            # Insert quote record
+            quote_query = """
+            INSERT INTO quotes (quote_number, customer_name, customer_email, status, total_price, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            """
+            
+            cursor.execute(quote_query, (quote_number, customer_name, customer_email, 'draft', total_price))
+            quote_id = cursor.lastrowid
+            
+            # Insert quote items
+            item_query = """
+            INSERT INTO quote_items (quote_id, part_number, description, quantity, unit_price, total_price, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            """
+            
+            for item in quote_items:
+                if item['type'] == 'main':
+                    part_number = item['part_number']
+                    description = f"{item['data'].get('model', 'N/A')} - {item['data'].get('voltage', 'N/A')}"
+                    unit_price = item['data'].get('total_price', 0.0)
+                else:  # spare part
+                    part_number = item['part_number']
+                    description = item['data'].get('description', 'Spare Part')
+                    unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
+                
+                quantity = item.get('quantity', 1)
+                total_item_price = unit_price * quantity
+                
+                cursor.execute(item_query, (quote_id, part_number, description, quantity, unit_price, total_item_price))
+            
+            self.connection.commit()
+            return True
+            
+        except sqlite3.Error as e:
+            print(f"Error saving quote: {e}")
+            if self.connection:
+                self.connection.rollback()
+            return False
+    
+    def load_quote(self, quote_number: str) -> Optional[Dict[str, Any]]:
+        """
+        Load a complete quote from the database
+        
+        Args:
+            quote_number: Quote number to load
+            
+        Returns:
+            Quote data dictionary or None if not found
+        """
+        if not self.connection:
+            if not self.connect():
+                return None
+        
+        try:
+            # Get quote header
+            quote_query = """
+            SELECT * FROM quotes WHERE quote_number = ?
+            """
+            
+            quote_results = self.execute_query(quote_query, (quote_number,))
+            if not quote_results:
+                return None
+            
+            quote_data = quote_results[0]
+            
+            # Get quote items
+            items_query = """
+            SELECT * FROM quote_items WHERE quote_id = ? ORDER BY created_at
+            """
+            
+            quote_items = self.execute_query(items_query, (quote_data['id'],))
+            
+            return {
+                'quote_number': quote_data['quote_number'],
+                'customer_name': quote_data['customer_name'],
+                'customer_email': quote_data['customer_email'],
+                'status': quote_data['status'],
+                'total_price': quote_data['total_price'],
+                'created_at': quote_data['created_at'],
+                'updated_at': quote_data['updated_at'],
+                'items': quote_items
+            }
+            
+        except sqlite3.Error as e:
+            print(f"Error loading quote: {e}")
+            return None
+    
+    def get_recent_quotes(self, limit: int = 10, user_initials: str = "") -> List[Dict[str, Any]]:
+        """
+        Get recent quotes, optionally filtered by user initials
+        
+        Args:
+            limit: Maximum number of quotes to return
+            user_initials: Filter by user initials (optional)
+            
+        Returns:
+            List of quote summaries
+        """
+        if user_initials:
+            query = """
+            SELECT quote_number, customer_name, customer_email, status, total_price, created_at
+            FROM quotes 
+            WHERE quote_number LIKE ?
+            ORDER BY created_at DESC 
+            LIMIT ?
+            """
+            params = (f"{user_initials.upper()}%", limit)
+        else:
+            query = """
+            SELECT quote_number, customer_name, customer_email, status, total_price, created_at
+            FROM quotes 
+            ORDER BY created_at DESC 
+            LIMIT ?
+            """
+            params = (limit,)
+        
+        return self.execute_query(query, params)
+    
+    def update_quote_status(self, quote_number: str, status: str) -> bool:
+        """
+        Update quote status (draft, sent, accepted, rejected, etc.)
+        
+        Args:
+            quote_number: Quote number
+            status: New status
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            if not self.connection:
+                return False
+                
+            cursor = self.connection.cursor()
+            
+            update_query = """
+            UPDATE quotes 
+            SET status = ?, updated_at = datetime('now')
+            WHERE quote_number = ?
+            """
+            
+            cursor.execute(update_query, (status, quote_number))
+            self.connection.commit()
+            
+            return cursor.rowcount > 0
+            
+        except sqlite3.Error as e:
+            print(f"Error updating quote status: {e}")
+            return False
+    
+    def search_quotes(self, search_term: str) -> List[Dict[str, Any]]:
+        """
+        Search quotes by quote number, customer name, or email
+        
+        Args:
+            search_term: Search term
+            
+        Returns:
+            List of matching quotes
+        """
+        query = """
+        SELECT quote_number, customer_name, customer_email, status, total_price, created_at
+        FROM quotes 
+        WHERE quote_number LIKE ? 
+           OR customer_name LIKE ? 
+           OR customer_email LIKE ?
+        ORDER BY created_at DESC
+        """
+        
+        search_pattern = f"%{search_term}%"
+        return self.execute_query(query, (search_pattern, search_pattern, search_pattern))
+
     def __enter__(self):
         """Context manager entry"""
         self.connect()

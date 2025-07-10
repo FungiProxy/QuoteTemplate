@@ -290,9 +290,10 @@ class SettingsDialog:
 class ExportDialog:
     """Export dialog for saving quotes"""
     
-    def __init__(self, parent, quote_data: Dict[str, Any]):
+    def __init__(self, parent, quote_data: Dict[str, Any], quote_number: Optional[str] = None):
         self.parent = parent
         self.quote_data = quote_data
+        self.quote_number = quote_number
         self.dialog = tk.Toplevel(parent)
         self.result = None
         self.setup_dialog()
@@ -301,16 +302,17 @@ class ExportDialog:
     def setup_dialog(self):
         """Setup dialog properties"""
         self.dialog.title("Export Quote")
-        self.dialog.geometry("450x300")
-        self.dialog.resizable(False, False)
+        self.dialog.geometry("500x400")  # Increased size
+        self.dialog.resizable(True, True)  # Made resizable
+        self.dialog.minsize(450, 350)  # Set minimum size
         self.dialog.transient(self.parent)
         self.dialog.grab_set()
         
         # Center the dialog
         self.dialog.update_idletasks()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - 225
-        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - 150
-        self.dialog.geometry(f"450x300+{x}+{y}")
+        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - 250
+        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - 200
+        self.dialog.geometry(f"500x400+{x}+{y}")
     
     def create_content(self):
         """Create dialog content"""
@@ -336,8 +338,11 @@ class ExportDialog:
         path_frame = ttk.Frame(file_frame)
         path_frame.pack(fill=tk.X, pady=(5, 0))
         
-        # Default filename
-        default_name = f"Quote_{part_number.replace('/', '_').replace('\"', 'in')}.docx"
+        # Default filename - use quote number if available, otherwise part number
+        if self.quote_number:
+            default_name = f"{self.quote_number}.docx"
+        else:
+            default_name = f"Quote_{part_number.replace('/', '_').replace('\"', 'in')}.docx"
         self.file_path_var = tk.StringVar(value=default_name)
         
         file_entry = ttk.Entry(path_frame, textvariable=self.file_path_var)
@@ -381,20 +386,50 @@ class ExportDialog:
     
     def on_export(self):
         """Handle export button"""
+        print("=== ExportDialog.on_export() called ===")
         file_path = self.file_path_var.get()
+        print(f"Initial file path: '{file_path}'")
         
         if not file_path:
+            print("❌ No file path specified")
             messagebox.showerror("Error", "Please specify a file path.")
             return
         
+        # Ensure .docx extension
+        if not file_path.lower().endswith('.docx'):
+            file_path += '.docx'
+            self.file_path_var.set(file_path)
+            print(f"Added .docx extension: '{file_path}'")
+        
+        # If it's just a filename (no directory path), use file dialog to get full path
+        import os
+        if not os.path.dirname(file_path):
+            print(f"No directory in path '{file_path}' - opening file dialog")
+            full_path = filedialog.asksaveasfilename(
+                title="Save Quote As",
+                defaultextension=".docx",
+                filetypes=[("Word Document", "*.docx"), ("All Files", "*.*")],
+                initialfile=file_path
+            )
+            print(f"File dialog returned: '{full_path}'")
+            
+            if not full_path or (isinstance(full_path, str) and full_path.strip() == ""):
+                print("❌ User cancelled file dialog")
+                return  # User cancelled
+            file_path = str(full_path)
+            print(f"Using full path: '{file_path}'")
+        
         # Prepare export options
+        print("✓ Preparing export result")
         self.result = {
             'file_path': file_path,
             'open_after_export': self.open_after_export_var.get(),
             'include_specs': self.include_specs_var.get(),
             'include_pricing': self.include_pricing_var.get()
         }
+        print(f"Export result prepared: {self.result}")
         
+        print("✓ Destroying ExportDialog")
         self.dialog.destroy()
     
     def on_cancel(self):

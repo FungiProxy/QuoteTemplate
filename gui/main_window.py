@@ -5,9 +5,10 @@ Provides the primary user interface for the application
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import sys
 import os
+import datetime
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,7 +21,7 @@ from config.settings import (
 from core.part_parser import PartNumberParser
 from core.quote_generator import QuoteGenerator
 from core.spare_parts_manager import SparePartsManager
-from .quote_display import QuoteDisplayWidget
+
 from .dialogs import AboutDialog, SettingsDialog, ExportDialog
 
 class MainWindow:
@@ -33,6 +34,12 @@ class MainWindow:
         self.spare_parts_manager = SparePartsManager()
         self.current_quote_data = None
         self.spare_parts_list = []  # List to store added spare parts
+        self.quote_items = []  # List to store all quote items (main parts + spare parts)
+        self.current_quote_number = None  # Track current quote number
+        
+        # Import database manager for quote functionality
+        from database.db_manager import DatabaseManager
+        self.db_manager = DatabaseManager()
         
         self.setup_window()
         self.create_menu()
@@ -100,134 +107,191 @@ class MainWindow:
         """Create main UI widgets"""
         # Main container
         main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky="wens")
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(3, weight=1)  # Quote summary area will be expandable
         
-        # Input section
-        input_frame = ttk.LabelFrame(main_frame, text="Part Number Input", padding="10")
-        input_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
-        input_frame.columnconfigure(1, weight=1)
-        
-        # Part number entry
-        ttk.Label(input_frame, text="Part Number:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
-        self.part_number_var = tk.StringVar()
-        self.part_number_entry = ttk.Entry(input_frame, textvariable=self.part_number_var, font=("Consolas", 12))
-        self.part_number_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
-        
-        # Parse button
-        self.parse_button = ttk.Button(input_frame, text="Parse & Price", command=self.parse_part_number)
-        self.parse_button.grid(row=0, column=2, padx=(0, 10))
-        
-        # Sample button
-        self.sample_button = ttk.Button(input_frame, text="Samples", command=self.show_samples)
-        self.sample_button.grid(row=0, column=3)
-        
-        # Customer info section
+        # Customer Information section (TOP)
         customer_frame = ttk.LabelFrame(main_frame, text="Customer Information", padding="10")
-        customer_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        customer_frame.grid(row=0, column=0, sticky="we", pady=(0, 10))
         customer_frame.columnconfigure(1, weight=1)
         customer_frame.columnconfigure(3, weight=1)
         
-        # Customer name
-        ttk.Label(customer_frame, text="Customer:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
-        self.customer_var = tk.StringVar(value="New Customer")
-        customer_entry = ttk.Entry(customer_frame, textvariable=self.customer_var)
-        customer_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 20))
+        # Row 1: Company and Contact Person
+        ttk.Label(customer_frame, text="Company:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.company_var = tk.StringVar(value="")
+        company_entry = ttk.Entry(customer_frame, textvariable=self.company_var)
+        company_entry.grid(row=0, column=1, sticky="we", padx=(0, 20))
         
-        # Quantity
-        ttk.Label(customer_frame, text="Quantity:").grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
-        self.quantity_var = tk.StringVar(value="1")
-        quantity_entry = ttk.Entry(customer_frame, textvariable=self.quantity_var, width=10)
-        quantity_entry.grid(row=0, column=3, sticky=tk.W)
+        ttk.Label(customer_frame, text="Contact Person:").grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
+        self.contact_person_var = tk.StringVar(value="")
+        contact_entry = ttk.Entry(customer_frame, textvariable=self.contact_person_var)
+        contact_entry.grid(row=0, column=3, sticky="we")
         
-        # Spare Parts section
+        # Row 2: Phone and Email
+        ttk.Label(customer_frame, text="Phone:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        self.phone_var = tk.StringVar(value="")
+        phone_entry = ttk.Entry(customer_frame, textvariable=self.phone_var)
+        phone_entry.grid(row=1, column=1, sticky="we", padx=(0, 20), pady=(5, 0))
+        
+        ttk.Label(customer_frame, text="Email:").grid(row=1, column=2, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        self.email_var = tk.StringVar(value="")
+        email_entry = ttk.Entry(customer_frame, textvariable=self.email_var)
+        email_entry.grid(row=1, column=3, sticky="we", pady=(5, 0))
+        
+        # Row 3: Initials for quote numbering
+        ttk.Label(customer_frame, text="Your Initials:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        self.initials_var = tk.StringVar(value="")
+        self.initials_entry = ttk.Entry(customer_frame, textvariable=self.initials_var, width=5)
+        self.initials_entry.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+        
+        # Add validation for uppercase initials
+        def uppercase_initials(*args):
+            current = self.initials_var.get()
+            if current != current.upper():
+                self.initials_var.set(current.upper())
+        
+        self.initials_var.trace('w', uppercase_initials)
+        
+        # Part Number Input section
+        input_frame = ttk.LabelFrame(main_frame, text="Part Number Input", padding="10")
+        input_frame.grid(row=1, column=0, sticky="we", pady=(0, 10))
+        input_frame.columnconfigure(1, weight=1)
+        
+        # Part number entry (row 1)
+        ttk.Label(input_frame, text="Part Number:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.part_number_var = tk.StringVar()
+        self.part_number_entry = ttk.Entry(input_frame, textvariable=self.part_number_var, font=("Consolas", 12), width=50)
+        self.part_number_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        
+        # Quantity and buttons (row 2)
+        ttk.Label(input_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
+        self.main_qty_var = tk.StringVar(value="1")
+        main_qty_entry = ttk.Entry(input_frame, textvariable=self.main_qty_var, width=10)
+        main_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
+        
+        self.parse_button = ttk.Button(input_frame, text="Parse & Price", command=self.parse_part_number)
+        self.parse_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
+        
+        self.add_to_quote_button = ttk.Button(input_frame, text="Add to Quote", command=self.add_main_part_to_quote)
+        self.add_to_quote_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
+        
+        # Common P/N button (like samples)
+        self.common_pn_button = ttk.Button(input_frame, text="Common P/N", command=self.show_samples)
+        self.common_pn_button.grid(row=1, column=4, pady=(10, 0))
+        
+        # Spare Parts section (same layout as part number section)
         spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
-        spare_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        spare_frame.grid(row=2, column=0, sticky="we", pady=(0, 10))
         spare_frame.columnconfigure(1, weight=1)
-        spare_frame.rowconfigure(1, weight=1)
         
-        # Spare parts entry
-        spare_entry_frame = ttk.Frame(spare_frame)
-        spare_entry_frame.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
-        spare_entry_frame.columnconfigure(1, weight=1)
-        
-        ttk.Label(spare_entry_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        # Spare parts entry (row 1)
+        ttk.Label(spare_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.spare_part_var = tk.StringVar()
-        self.spare_part_entry = ttk.Entry(spare_entry_frame, textvariable=self.spare_part_var, font=("Consolas", 10))
-        self.spare_part_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
+        self.spare_part_entry = ttk.Entry(spare_frame, textvariable=self.spare_part_var, font=("Consolas", 12), width=50)
+        self.spare_part_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
         
-        # Quantity for spare part
-        ttk.Label(spare_entry_frame, text="Qty:").grid(row=0, column=2, sticky=tk.W, padx=(0, 5))
+        # Quantity and buttons (row 2)
+        ttk.Label(spare_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
         self.spare_qty_var = tk.StringVar(value="1")
-        spare_qty_entry = ttk.Entry(spare_entry_frame, textvariable=self.spare_qty_var, width=5)
-        spare_qty_entry.grid(row=0, column=3, sticky=tk.W, padx=(0, 10))
+        spare_qty_entry = ttk.Entry(spare_frame, textvariable=self.spare_qty_var, width=10)
+        spare_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
         
-        # Add spare part button
-        self.add_spare_button = ttk.Button(spare_entry_frame, text="Add Spare Part", command=self.add_spare_part)
-        self.add_spare_button.grid(row=0, column=4, padx=(0, 10))
+        self.parse_spare_button = ttk.Button(spare_frame, text="Parse & Price", command=self.parse_spare_part)
+        self.parse_spare_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
         
-        # Help button for spare parts
-        self.spare_help_button = ttk.Button(spare_entry_frame, text="Format Help", command=self.show_spare_parts_help)
-        self.spare_help_button.grid(row=0, column=5)
+        self.add_spare_button = ttk.Button(spare_frame, text="Add to Quote", command=self.add_spare_part)
+        self.add_spare_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
         
-        # Spare parts list
-        list_frame = ttk.Frame(spare_frame)
-        list_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
-        list_frame.columnconfigure(0, weight=1)
-        list_frame.rowconfigure(0, weight=1)
+        # Common spare parts button
+        self.common_spare_button = ttk.Button(spare_frame, text="Common P/N", command=self.show_spare_parts_help)
+        self.common_spare_button.grid(row=1, column=4, pady=(10, 0))
         
-        # Treeview for spare parts
-        columns = ("Part Number", "Description", "Quantity", "Unit Price", "Total Price")
-        self.spare_parts_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=4)
+
+        
+        # Quote Summary section (NEW)
+        quote_summary_frame = ttk.LabelFrame(main_frame, text="Quote Summary", padding="10")
+        quote_summary_frame.grid(row=3, column=0, sticky="wens", pady=(0, 10))
+        quote_summary_frame.columnconfigure(0, weight=1)
+        quote_summary_frame.rowconfigure(0, weight=1)
+        
+        # Quote items treeview
+        columns = ("Type", "Part Number", "Description", "Qty", "Unit Price", "Total Price")
+        self.quote_tree = ttk.Treeview(quote_summary_frame, columns=columns, show="headings", height=8)
         
         # Configure columns
-        self.spare_parts_tree.heading("Part Number", text="Part Number")
-        self.spare_parts_tree.heading("Description", text="Description")
-        self.spare_parts_tree.heading("Quantity", text="Qty")
-        self.spare_parts_tree.heading("Unit Price", text="Unit Price")
-        self.spare_parts_tree.heading("Total Price", text="Total Price")
+        self.quote_tree.heading("Type", text="Type")
+        self.quote_tree.heading("Part Number", text="Part Number")
+        self.quote_tree.heading("Description", text="Description")
+        self.quote_tree.heading("Qty", text="Qty")
+        self.quote_tree.heading("Unit Price", text="Unit Price")
+        self.quote_tree.heading("Total Price", text="Total Price")
         
-        self.spare_parts_tree.column("Part Number", width=150)
-        self.spare_parts_tree.column("Description", width=250)
-        self.spare_parts_tree.column("Quantity", width=50)
-        self.spare_parts_tree.column("Unit Price", width=100)
-        self.spare_parts_tree.column("Total Price", width=100)
+        self.quote_tree.column("Type", width=80)
+        self.quote_tree.column("Part Number", width=200)
+        self.quote_tree.column("Description", width=250)
+        self.quote_tree.column("Qty", width=50)
+        self.quote_tree.column("Unit Price", width=100)
+        self.quote_tree.column("Total Price", width=100)
         
-        # Scrollbar for spare parts
-        spare_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.spare_parts_tree.yview)
-        self.spare_parts_tree.configure(yscrollcommand=spare_scrollbar.set)
+        # Scrollbar for quote summary
+        quote_scrollbar = ttk.Scrollbar(quote_summary_frame, orient=tk.VERTICAL, command=self.quote_tree.yview)
+        self.quote_tree.configure(yscrollcommand=quote_scrollbar.set)
         
-        self.spare_parts_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        spare_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        # Add right-click context menu to main quote tree
+        def show_main_tree_details(event):
+            """Show detailed information for selected item in main tree"""
+            item_id = self.quote_tree.identify_row(event.y)
+            if item_id:
+                item_index = self.quote_tree.index(item_id)
+                if 0 <= item_index < len(self.quote_items):
+                    selected_item = self.quote_items[item_index]
+                    self.show_part_details_popup(selected_item, self.root)
         
-        # Spare parts buttons
-        spare_buttons_frame = ttk.Frame(spare_frame)
-        spare_buttons_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        self.quote_tree.bind("<Button-3>", show_main_tree_details)  # Right-click
         
-        self.remove_spare_button = ttk.Button(spare_buttons_frame, text="Remove Selected", command=self.remove_spare_part)
-        self.remove_spare_button.grid(row=0, column=0, padx=(0, 10))
+        self.quote_tree.grid(row=0, column=0, sticky="wens")
+        quote_scrollbar.grid(row=0, column=1, sticky="ns")
         
-        self.clear_spares_button = ttk.Button(spare_buttons_frame, text="Clear All", command=self.clear_spare_parts)
-        self.clear_spares_button.grid(row=0, column=1)
+        # Quote summary buttons
+        quote_buttons_frame = ttk.Frame(quote_summary_frame)
+        quote_buttons_frame.grid(row=1, column=0, columnspan=2, sticky="we", pady=(10, 0))
         
-        # Results section
-        self.quote_display = QuoteDisplayWidget(main_frame)
-        self.quote_display.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.view_quote_button = ttk.Button(quote_buttons_frame, text="View Quote", command=self.view_quote)
+        self.view_quote_button.grid(row=0, column=0, padx=(0, 10))
+        
+        self.edit_item_button = ttk.Button(quote_buttons_frame, text="Edit Selected", command=self.edit_quote_item)
+        self.edit_item_button.grid(row=0, column=1, padx=(0, 10))
+        
+        self.remove_item_button = ttk.Button(quote_buttons_frame, text="Remove Selected", command=self.remove_quote_item)
+        self.remove_item_button.grid(row=0, column=2, padx=(0, 10))
+        
+        self.clear_quote_button = ttk.Button(quote_buttons_frame, text="Clear Quote", command=self.clear_quote)
+        self.clear_quote_button.grid(row=0, column=3, padx=(0, 10))
+        
+        # Total value display
+        self.total_label = ttk.Label(quote_buttons_frame, text="Total: $0.00", font=("Arial", 12, "bold"))
+        self.total_label.grid(row=0, column=4, padx=(20, 0))
+        
+        # Quote number display
+        self.quote_number_label = ttk.Label(quote_buttons_frame, text="Quote #: Not Generated", font=("Arial", 10))
+        self.quote_number_label.grid(row=0, column=5, padx=(20, 0))
         
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        status_bar.grid(row=4, column=0, sticky="we", pady=(10, 0))
         
         # Store references to main widgets
         self.main_frame = main_frame
         self.input_frame = input_frame
         self.customer_frame = customer_frame
+        self.spare_frame = spare_frame
+        self.quote_summary_frame = quote_summary_frame
     
     def setup_layout(self):
         """Configure layout and grid weights"""
@@ -274,9 +338,6 @@ class MainWindow:
             # Generate quote data
             self.current_quote_data = self.parser.get_quote_data(parsed_result)
             
-            # Update display
-            self.quote_display.update_display(self.current_quote_data)
-            
             # Update status
             total_price = self.current_quote_data.get('total_price', 0)
             self.status_var.set(f"Part parsed successfully - Total: ${total_price:.2f}")
@@ -287,64 +348,662 @@ class MainWindow:
     
     def export_quote(self):
         """Export current quote to Word document"""
+        print("=== EXPORT_QUOTE FUNCTION CALLED ===")
+        print(f"Current quote data: {self.current_quote_data}")
+        
         if not self.current_quote_data:
+            print("No quote data - showing warning")
             messagebox.showwarning("No Quote", "Please parse a part number first.")
             return
         
+        print("✓ Quote data validation passed")
+        
+        # Validate initials are entered
+        user_initials = self.initials_var.get().strip()
+        print(f"User initials retrieved: '{user_initials}'")
+        
+        if not user_initials:
+            print("❌ No initials entered - showing error")
+            messagebox.showerror("Initials Required", 
+                "You must enter your initials before exporting a quote.\n\n"
+                "This is required for quote number generation and tracking.")
+            return
+        
+        if len(user_initials) < 2:
+            print(f"❌ Initials too short: '{user_initials}' - showing error")
+            messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
+            return
+        
+        print(f"✓ Initials validation passed: '{user_initials}'")
+        
+        # Generate quote number if not already generated
+        if not self.current_quote_number:
+            print("Generating new quote number...")
+            if not self.generate_new_quote_number():
+                print("❌ Quote number generation failed")
+                return  # Failed to generate quote number
+        
+        print(f"✓ Quote number available: {self.current_quote_number}")
+        
         try:
-            # Show export dialog
-            dialog = ExportDialog(self.root, self.current_quote_data)
+            # Show export dialog with quote number
+            print("Opening ExportDialog...")
+            dialog = ExportDialog(self.root, self.current_quote_data, self.current_quote_number)
+            
+            # Wait for the modal dialog to complete before checking result
+            self.root.wait_window(dialog.dialog)
+            print(f"ExportDialog result: {dialog.result}")
+            
             if dialog.result:
                 export_path = dialog.result.get('file_path')
+                print(f"Export path from dialog: {export_path}")
+                
                 if export_path:
                     self.status_var.set("Exporting quote...")
                     self.root.update()
                     
                     # Generate quote with customer info
                     customer_info = {
-                        'customer_name': self.customer_var.get(),
-                        'quantity': int(self.quantity_var.get() or 1)
+                        'customer_name': self.company_var.get(), # Changed from self.customer_var.get()
+                        'quantity': int(self.main_qty_var.get() or 1)
                     }
                     
-                    # Export to Word
-                    output_path = self.quote_generator.generate_quote(
-                        self.current_quote_data, 
-                        output_path=export_path,
-                        customer_info=customer_info
-                    )
+                    # Use the same export method as the working view quote export
+                    print(f"Starting export process to: {export_path}")
+                    print(f"Current quote data exists: {self.current_quote_data is not None}")
                     
-                    self.status_var.set(f"Quote exported to {output_path}")
-                    messagebox.showinfo("Export Success", f"Quote exported successfully to:\n{output_path}")
+                    # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+                    part_number = self.current_quote_data.get('part_number', '') or self.current_quote_data.get('original_part_number', '')
+                    model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                    print(f"Extracted part_number: '{part_number}'")
+                    print(f"Extracted model: '{model}'")
+                    
+                    # Get customer information
+                    customer_name = self.company_var.get() or "Customer Name"
+                    contact_name = self.contact_person_var.get() or "Contact Person"
+                    
+                    # Use the generated quote number (guaranteed to exist at this point)
+                    assert self.current_quote_number is not None
+                    quote_number = self.current_quote_number
+                    
+                    # Get pricing info
+                    unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
+                    if unit_price and unit_price > 0:
+                        unit_price = f"{unit_price:.2f}"
+                    else:
+                        unit_price = "Please Contact"
+                    
+                    # Try Word template system first (same as working export)
+                    success = False
+                    try:
+                        from export.word_template_processor import generate_word_quote
+                        print("✓ Word template processor imported successfully")
+                        print(f"Attempting Word template export for model: {model}")
+                        print(f"Looking for template: {model}_template.docx")
+                        print(f"Using insulator length: {self.current_quote_data.get('base_insulator_length', 4)}\"")
+                        
+                        success = generate_word_quote(
+                            model=model,
+                            customer_name=customer_name,
+                            attention_name=contact_name,
+                            quote_number=quote_number,
+                            part_number=part_number,
+                            unit_price=unit_price,
+                            supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
+                            probe_length=str(self.current_quote_data.get('probe_length', 12)),
+                            output_path=export_path,
+                            # Additional specs from parsed data
+                            insulator_material=self._get_insulator_material_name(),
+                            insulator_length=f"{self.current_quote_data.get('base_insulator_length', 4)}\"",
+                            probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
+                            max_temperature=f"{self.current_quote_data.get('max_temperature', 450)}°F",
+                            max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI",
+                            output_type=self.current_quote_data.get('output_type', '10 Amp SPDT Relay'),
+                            process_connection_size=f"{self.current_quote_data.get('process_connection_size', '¾')}\""
+                        )
+                        print(f"Word template export success: {success}")
+                        
+                        if success:
+                            print(f"✓ File created successfully at: {export_path}")
+                            import os
+                            if os.path.exists(export_path):
+                                print(f"✓ File verified to exist: {os.path.getsize(export_path)} bytes")
+                            else:
+                                print(f"❌ File does not exist at: {export_path}")
+                                success = False
+                        
+                    except Exception as e:
+                        print(f"❌ Word template export failed: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        success = False
+                    
+                    # If Word template failed, try fallback to basic docx generation instead of problematic RTF
+                    if not success:
+                        print("📄 Word template failed, trying basic docx generation...")
+                        try:
+                            from core.quote_generator import QuoteGenerator
+                            fallback_generator = QuoteGenerator()
+                            
+                            # Create a properly formatted data structure for the quote generator
+                            formatted_quote_data = dict(self.current_quote_data)
+                            formatted_quote_data['original_part_number'] = part_number
+                            print(f"Formatted quote data keys: {list(formatted_quote_data.keys())}")
+                            
+                            success = fallback_generator.generate_quote(formatted_quote_data, output_path=export_path)
+                            print(f"Basic docx generation success: {success}")
+                            
+                            if success:
+                                print(f"✓ Fallback file created successfully at: {export_path}")
+                                import os
+                                if os.path.exists(export_path):
+                                    print(f"✓ Fallback file verified to exist: {os.path.getsize(export_path)} bytes")
+                                else:
+                                    print(f"❌ Fallback file does not exist at: {export_path}")
+                                    success = False
+                        except Exception as fallback_error:
+                            print(f"❌ Basic docx generation also failed: {fallback_error}")
+                            import traceback
+                            traceback.print_exc()
+                            success = False
+                    
+                    if success:
+                        # Save quote to database after successful export (same as working export)
+                        try:
+                            customer_name = self.company_var.get().strip()
+                            if customer_name and self.current_quote_number:
+                                if self.db_manager.connect():
+                                    # Create a quote item for database save
+                                    quote_items = [{
+                                        'type': 'main',
+                                        'part_number': part_number,
+                                        'description': f"LS Switch - {part_number}",
+                                        'quantity': int(self.main_qty_var.get() or 1),
+                                        'unit_price': float(unit_price) if unit_price != "Please Contact" else 0.0,
+                                        'total_price': float(unit_price) * int(self.main_qty_var.get() or 1) if unit_price != "Please Contact" else 0.0,
+                                        'data': self.current_quote_data
+                                    }]
+                                    
+                                    total_price = quote_items[0]['total_price']
+                                    
+                                    db_save_success = self.db_manager.save_quote(
+                                        quote_number=self.current_quote_number,
+                                        customer_name=customer_name,
+                                        customer_email=self.email_var.get().strip(),
+                                        quote_items=quote_items,
+                                        total_price=total_price,
+                                        user_initials=user_initials
+                                    )
+                                    
+                                    if db_save_success:
+                                        self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
+                                    else:
+                                        self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
+                                    
+                                    self.db_manager.disconnect()
+                        except Exception as db_error:
+                            print(f"Database save error: {db_error}")
+                            # Don't show error to user since export was successful
+                        
+                        self.status_var.set(f"Quote exported to {export_path}")
+                        messagebox.showinfo("Export Success", f"Quote exported successfully to:\n{export_path}\n\nQuote Number: {self.current_quote_number}")
+                        
+                        # Open file if requested
+                        if dialog.result.get('open_after_export', False):
+                            try:
+                                import os
+                                os.startfile(export_path)  # Windows
+                            except:
+                                try:
+                                    import subprocess
+                                    subprocess.call(['open', export_path])  # macOS
+                                except:
+                                    try:
+                                        subprocess.call(['xdg-open', export_path])  # Linux
+                                    except:
+                                        pass  # Could not open file
+                    else:
+                        print("❌ Export failed - all methods unsuccessful")
+                        self.status_var.set("Export failed")
+                        messagebox.showerror("Export Failed", 
+                            "Failed to export quote. This might be because:\n\n"
+                            "• python-docx library is not installed\n"
+                            "• File path is invalid\n"
+                            "• Permissions issue\n\n"
+                            "Please check the console for detailed error messages.")
+                else:
+                    print("❌ No export path provided from dialog")
+            else:
+                print("❌ ExportDialog was cancelled or returned no result")
                     
         except Exception as e:
+            print(f"❌ Exception in export_quote: {e}")
+            import traceback
+            traceback.print_exc()
             self.status_var.set("Export failed")
             messagebox.showerror("Export Error", f"Failed to export quote:\n{str(e)}")
+    
+    def _get_insulator_material_name(self) -> str:
+        """Get the proper insulator material display name from parsed quote data"""
+        if not self.current_quote_data:
+            return 'UHMWPE'
+        
+        # First try to extract from the formatted insulator string
+        insulator_display = self.current_quote_data.get('insulator', '')
+        if insulator_display and '"' in insulator_display:
+            # Extract material from strings like "4.0\" Teflon"
+            parts = insulator_display.split('"')
+            if len(parts) > 1:
+                material = parts[1].strip()
+                if material:
+                    return material
+        
+        # Fallback: translate material code to display name
+        material_code = self.current_quote_data.get('insulator_material', 'U')
+        material_codes = {
+            'TEF': 'Teflon',
+            'U': 'UHMWPE', 
+            'UHMWPE': 'UHMWPE',
+            'DEL': 'DELRIN',
+            'PEEK': 'PEEK',
+            'CER': 'Ceramic'
+        }
+        return material_codes.get(material_code, 'UHMWPE')
+
+    @staticmethod
+    def _extract_insulator_material_name(quote_data: dict) -> str:
+        """Extract proper insulator material display name from any quote data dictionary"""
+        if not quote_data:
+            return 'UHMWPE'
+        
+        # First try to extract from the formatted insulator string
+        insulator_display = quote_data.get('insulator', '')
+        if insulator_display and '"' in insulator_display:
+            # Extract material from strings like "4.0\" Teflon"
+            parts = insulator_display.split('"')
+            if len(parts) > 1:
+                material = parts[1].strip()
+                if material:
+                    return material
+        
+        # Fallback: translate material code to display name
+        material_code = quote_data.get('insulator_material', 'U')
+        material_codes = {
+            'TEF': 'Teflon',
+            'U': 'UHMWPE', 
+            'UHMWPE': 'UHMWPE',
+            'DEL': 'DELRIN',
+            'PEEK': 'PEEK',
+            'CER': 'Ceramic'
+        }
+        return material_codes.get(material_code, 'UHMWPE')
+
+    def _try_rtf_template_export(self, export_path: str) -> bool:
+        """Try exporting using the new Word template system"""
+        try:
+            # Check if we have quote data
+            if not self.current_quote_data:
+                print("No quote data available")
+                return False
+                
+            # Import the new template systems
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            
+            # Try Word template system first (preferred)
+            try:
+                from export.word_template_processor import generate_word_quote
+                print("✓ Word template processor imported successfully")
+                print("Attempting Word template export...")
+                success = self._try_word_template_export(export_path)
+                print(f"Word template export returned: {success}")
+                if success:
+                    print("✓ Word template export successful - returning True")
+                    return True
+                print("⚠ Word template export failed, trying RTF fallback...")
+            except ImportError as e:
+                print(f"❌ Word template system import failed: {e}")
+            except Exception as e:
+                print(f"❌ Word template system error: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # Fallback to RTF template system
+            print("📄 Falling back to RTF template system...")
+            from export.word_exporter import generate_quote
+            
+            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+            part_number = self.current_quote_data.get('original_part_number', '')
+            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+            
+            # Get customer information
+            customer_name = self.company_var.get() or "Customer Name"
+            contact_name = self.contact_person_var.get() or "Contact Person"
+            
+            # Generate quote number
+            from datetime import datetime
+            quote_number = f"Q-{datetime.now().strftime('%Y%m%d-%H%M')}"
+            
+            # Get pricing info
+            unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
+            if unit_price and unit_price > 0:
+                unit_price = f"{unit_price:.2f}"
+            else:
+                unit_price = "Please Contact"
+            
+            # Debug output
+            print(f"RTF Export Debug:")
+            print(f"  Model: {model}")
+            print(f"  Part Number: {part_number}")
+            print(f"  Customer: {customer_name}")
+            print(f"  Export Path: {export_path}")
+            print(f"  Unit Price: {unit_price}")
+            
+            # Generate the quote using RTF template system
+            success = generate_quote(
+                model=model,
+                customer_name=customer_name,
+                attention_name=contact_name,
+                quote_number=quote_number,
+                part_number=part_number,
+                unit_price=unit_price,
+                supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
+                probe_length=str(self.current_quote_data.get('probe_length', 12)),
+                output_path=export_path,
+                # Additional specs from parsed data
+                insulator_material=self._get_insulator_material_name(),
+                probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
+                max_temperature=f"{self.current_quote_data.get('max_temperature', 450)} F",
+                max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI"
+            )
+            
+            print(f"RTF export success: {success}")
+            if success and os.path.exists(export_path):
+                print(f"File created successfully: {os.path.getsize(export_path)} bytes")
+            else:
+                print(f"File not found after export: {export_path}")
+            
+            return success
+            
+        except Exception as e:
+            print(f"RTF template export failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _try_word_template_export(self, export_path: str) -> bool:
+        """Try exporting using the Word template system with template variables"""
+        try:
+            print("🔧 Starting Word template export...")
+            from export.word_template_processor import generate_word_quote
+            print("✓ generate_word_quote imported successfully")
+            
+            # Ensure we have quote data
+            if not self.current_quote_data:
+                print("❌ No quote data available")
+                return False
+            print("✓ Quote data available")
+            
+            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+            part_number = self.current_quote_data.get('original_part_number', '')
+            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+            
+            # Get customer information
+            customer_name = self.company_var.get() or "Customer Name"
+            contact_name = self.contact_person_var.get() or "Contact Person"
+            
+            # Generate quote number
+            from datetime import datetime
+            quote_number = f"Q-{datetime.now().strftime('%Y%m%d-%H%M')}"
+            
+            # Get pricing info
+            unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
+            if unit_price and unit_price > 0:
+                unit_price = f"{unit_price:.2f}"
+            else:
+                unit_price = "Please Contact"
+            
+            # Debug output
+            print(f"Word Template Export Debug:")
+            print(f"  Model: {model}")
+            print(f"  Part Number: {part_number}")
+            print(f"  Customer: {customer_name}")
+            print(f"  Export Path: {export_path}")
+            print(f"  Unit Price: {unit_price}")
+            
+            # Generate the quote using Word template system
+            print("🚀 Calling generate_word_quote with parameters:")
+            print(f"   Model: {model}")
+            print(f"   Customer: {customer_name}")
+            print(f"   Part Number: {part_number}")
+            print(f"   Output Path: {export_path}")
+            
+            success = generate_word_quote(
+                model=model,
+                customer_name=customer_name,
+                attention_name=contact_name,
+                quote_number=quote_number,
+                part_number=part_number,
+                unit_price=unit_price,
+                supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
+                probe_length=str(self.current_quote_data.get('probe_length', 12)),
+                output_path=export_path,
+                # Additional specs from parsed data
+                insulator_material=self._get_insulator_material_name(),
+                insulator_length=f"{self.current_quote_data.get('base_insulator_length', 4)}\"",
+                probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
+                probe_material_name=self.current_quote_data.get('probe_material_name', '316 Stainless Steel'),
+                probe_diameter=self.current_quote_data.get('probe_diameter', '½"'),
+                max_temperature=f"{self.current_quote_data.get('max_temperature', 450)}°F",
+                max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI",
+                output_type=self.current_quote_data.get('output_type', '10 Amp SPDT Relay'),
+                process_connection_size=f"{self.current_quote_data.get('process_connection_size', '¾')}\""
+            )
+            print(f"📋 generate_word_quote returned: {success}")
+            
+            print(f"Word template export success: {success}")
+            if success and os.path.exists(export_path):
+                print(f"File created successfully: {os.path.getsize(export_path)} bytes")
+            else:
+                print(f"File not found after export: {export_path}")
+            
+            return success
+            
+        except Exception as e:
+            print(f"Word template export failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     def new_quote(self):
         """Start a new quote"""
         self.part_number_var.set("")
-        self.customer_var.set("New Customer")
-        self.quantity_var.set("1")
+        self.company_var.set("New Customer") # Changed from self.customer_var.set("New Customer")
+        self.main_qty_var.set("1")
         self.current_quote_data = None
-        self.quote_display.clear_display()
+        self.current_quote_number = None
         
-        # Clear spare parts
-        self.spare_parts_list = []
-        for item in self.spare_parts_tree.get_children():
-            self.spare_parts_tree.delete(item)
+        # Clear quote items
+        self.quote_items = []
+        
+        # Clear quote tree display
+        for item in self.quote_tree.get_children():
+            self.quote_tree.delete(item)
+        
+        # Update total and quote number display
+        self.update_quote_total()
+        self.update_quote_number_display()
         
         self.status_var.set("Ready for new quote")
     
     def open_quote(self):
-        """Open an existing quote (placeholder)"""
-        messagebox.showinfo("Feature Not Available", "Open quote functionality will be implemented in a future version.")
+        """Open an existing quote"""
+        # Show dialog to select a quote to open
+        recent_quotes = []
+        try:
+            if not self.db_manager.connect():
+                messagebox.showerror("Database Error", "Could not connect to database.")
+                return
+            
+            # Get recent quotes for this user or all quotes
+            user_initials = self.initials_var.get().strip()
+            recent_quotes = self.db_manager.get_recent_quotes(limit=20, user_initials=user_initials)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load quotes: {str(e)}")
+            return
+        finally:
+            self.db_manager.disconnect()
+        
+        if not recent_quotes:
+            messagebox.showinfo("No Quotes", "No quotes found to open.")
+            return
+        
+        # Create selection dialog
+        selection_window = tk.Toplevel(self.root)
+        selection_window.title("Open Quote")
+        selection_window.geometry("600x400")
+        selection_window.transient(self.root)
+        selection_window.grab_set()
+        
+        # Center the window
+        selection_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 300
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 200
+        selection_window.geometry(f"600x400+{x}+{y}")
+        
+        main_frame = ttk.Frame(selection_window, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="Select a quote to open:", font=("Arial", 12, "bold")).pack(anchor=tk.W, pady=(0, 10))
+        
+        # Create listbox with quotes
+        listbox_frame = ttk.Frame(main_frame)
+        listbox_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        quote_listbox = tk.Listbox(listbox_frame, font=("Consolas", 10))
+        scrollbar = ttk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=quote_listbox.yview)
+        quote_listbox.configure(yscrollcommand=scrollbar.set)
+        
+        quote_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Populate listbox
+        for quote in recent_quotes:
+            date_str = quote['created_at'][:10] if quote['created_at'] else 'Unknown'
+            display_text = f"{quote['quote_number']} - {quote['customer_name']} - ${quote['total_price']:.2f} - {date_str}"
+            quote_listbox.insert(tk.END, display_text)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        def open_selected():
+            selection = quote_listbox.curselection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select a quote to open.")
+                return
+            
+            selected_quote = recent_quotes[selection[0]]
+            quote_number = selected_quote['quote_number']
+            
+            # Load the complete quote data
+            try:
+                if not self.db_manager.connect():
+                    messagebox.showerror("Database Error", "Could not connect to database.")
+                    return
+                
+                quote_data = self.db_manager.load_quote(quote_number)
+                if not quote_data:
+                    messagebox.showerror("Error", f"Could not load quote {quote_number}")
+                    return
+                
+                # Clear current quote
+                self.new_quote()
+                
+                # Load customer information
+                self.company_var.set(quote_data['customer_name'] or '')
+                self.email_var.set(quote_data['customer_email'] or '')
+                
+                # Set quote number
+                self.current_quote_number = quote_data['quote_number']
+                self.update_quote_number_display()
+                
+                # Note: Loading quote items would require more complex logic
+                # to rebuild the original quote items structure
+                messagebox.showinfo("Quote Loaded", f"Quote {quote_number} basic information loaded.\nNote: Individual quote items would need additional implementation to fully restore.")
+                
+                selection_window.destroy()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load quote: {str(e)}")
+            finally:
+                self.db_manager.disconnect()
+        
+        ttk.Button(button_frame, text="Open", command=open_selected).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(button_frame, text="Cancel", command=selection_window.destroy).pack(side=tk.RIGHT)
     
     def save_quote(self):
-        """Save current quote (placeholder)"""
-        if not self.current_quote_data:
-            messagebox.showwarning("No Quote", "Please parse a part number first.")
+        """Save current quote to database"""
+        if not self.quote_items:
+            messagebox.showwarning("No Quote", "Please add items to the quote first.")
             return
-        messagebox.showinfo("Feature Not Available", "Save quote functionality will be implemented in a future version.")
+        
+        # Validate required fields
+        customer_name = self.company_var.get().strip()
+        if not customer_name:
+            messagebox.showerror("Customer Required", "Please enter a customer name before saving.")
+            return
+        
+        user_initials = self.initials_var.get().strip()
+        if not user_initials:
+            messagebox.showerror("Initials Required", "Please enter your initials before saving.")
+            return
+        
+        # Generate quote number if not already generated
+        if not self.current_quote_number:
+            if not self.generate_new_quote_number():
+                return
+        
+        # Calculate total
+        total_value = 0.0
+        for item in self.quote_items:
+            if item['type'] == 'main':
+                unit_price = item['data'].get('total_price', 0.0)
+            else:  # spare part
+                unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
+            quantity = item.get('quantity', 1)
+            total_value += unit_price * quantity
+        
+        # Save to database
+        try:
+            if not self.db_manager.connect():
+                messagebox.showerror("Database Error", "Could not connect to database.")
+                return
+            
+            # At this point current_quote_number is guaranteed to be set
+            assert self.current_quote_number is not None
+            
+            success = self.db_manager.save_quote(
+                quote_number=self.current_quote_number,
+                customer_name=customer_name,
+                customer_email=self.email_var.get().strip(),
+                quote_items=self.quote_items,
+                total_price=total_value,
+                user_initials=user_initials
+            )
+            
+            if success:
+                messagebox.showinfo("Quote Saved", f"Quote {self.current_quote_number} saved successfully!")
+                self.status_var.set(f"Quote {self.current_quote_number} saved to database")
+            else:
+                messagebox.showerror("Save Failed", "Failed to save quote to database.")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save quote: {str(e)}")
+        finally:
+            self.db_manager.disconnect()
     
     def clear_part_number(self):
         """Clear part number entry"""
@@ -354,7 +1013,6 @@ class MainWindow:
     def clear_results(self):
         """Clear results display"""
         self.current_quote_data = None
-        self.quote_display.clear_display()
         self.status_var.set("Results cleared")
     
     def show_samples(self):
@@ -476,21 +1134,33 @@ class MainWindow:
                 
                 self.spare_parts_list.append(spare_part_info)
                 
-                # Add to treeview
-                self.spare_parts_tree.insert("", "end", values=(
-                    part_number,
-                    result['line_item_description'],
-                    str(quantity),
-                    f"${result['unit_price']:.2f}",
-                    f"${result['total_price']:.2f}"
-                ))
+                # Also add to quote items list
+                quote_item = {
+                    'type': 'spare',
+                    'part_number': part_number,
+                    'customer_name': self.company_var.get().strip(), # Changed from self.customer_var.get()
+                    'quantity': quantity,
+                    'data': {
+                        'description': result['line_item_description'],
+                        'pricing': {
+                            'total_price': result['unit_price']
+                        }
+                    },
+                    'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                self.quote_items.append(quote_item)
+                
+                # Add to quote tree
+                self.add_to_quote_tree("spare", part_number, result['line_item_description'], 
+                                     quantity, result['unit_price'], result['total_price'])
                 
                 # Clear input fields
                 self.spare_part_var.set("")
                 self.spare_qty_var.set("1")
                 
                 # Update status
-                self.status_var.set(f"Added spare part: {part_number}")
+                self.status_var.set(f"Added spare part: {part_number} - Total quote items: {len(self.quote_items)}")
                 
             else:
                 self.status_var.set("Failed to add spare part")
@@ -510,43 +1180,7 @@ class MainWindow:
             self.status_var.set("Error adding spare part")
             messagebox.showerror("Error", f"An error occurred while adding spare part:\n{str(e)}")
     
-    def remove_spare_part(self):
-        """Remove selected spare part from the list"""
-        selection = self.spare_parts_tree.selection()
-        if not selection:
-            messagebox.showwarning("No Selection", "Please select a spare part to remove.")
-            return
-        
-        try:
-            # Get the item
-            item = selection[0]
-            values = self.spare_parts_tree.item(item)['values']
-            part_number = values[0]
-            
-            # Remove from tree
-            self.spare_parts_tree.delete(item)
-            
-            # Remove from list
-            self.spare_parts_list = [sp for sp in self.spare_parts_list if sp['original_part_number'] != part_number]
-            
-            self.status_var.set(f"Removed spare part: {part_number}")
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to remove spare part:\n{str(e)}")
-    
-    def clear_spare_parts(self):
-        """Clear all spare parts"""
-        if self.spare_parts_list and not messagebox.askyesno("Clear All", "Are you sure you want to clear all spare parts?"):
-            return
-        
-        # Clear the tree
-        for item in self.spare_parts_tree.get_children():
-            self.spare_parts_tree.delete(item)
-        
-        # Clear the list
-        self.spare_parts_list = []
-        
-        self.status_var.set("All spare parts cleared")
+
     
     def show_spare_parts_help(self):
         """Show help for spare parts format"""
@@ -644,6 +1278,404 @@ Length pricing is automatically calculated for probe assemblies.
         # Close button
         ttk.Button(frame, text="Close", command=help_window.destroy).pack(anchor=tk.E)
     
+    def add_main_part_to_quote(self):
+        """Add the current main part to the quote"""
+        if not self.current_quote_data:
+            messagebox.showwarning("No Part Data", "Please parse a part number first.")
+            return
+        
+        try:
+            # Get customer info
+            customer_name = self.company_var.get().strip() # Changed from self.customer_var.get()
+            if not customer_name:
+                messagebox.showwarning("Customer Required", "Please enter a customer name.")
+                return
+            
+            quantity = int(self.main_qty_var.get() or 1)
+            if quantity <= 0:
+                messagebox.showwarning("Invalid Quantity", "Please enter a valid quantity (greater than 0).")
+                return
+            
+            # Create quote item
+            quote_item = {
+                'type': 'main',
+                'part_number': self.part_number_var.get().strip(),
+                'customer_name': customer_name,
+                'quantity': quantity,
+                'data': self.current_quote_data.copy(),
+                'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # Add to quote items list
+            self.quote_items.append(quote_item)
+            
+            # Add to quote tree display
+            description = f"{self.current_quote_data.get('model', 'N/A')} - {self.current_quote_data.get('voltage', 'N/A')}"
+            unit_price = self.current_quote_data.get('total_price', 0)
+            total_price = unit_price * quantity
+            
+            self.add_to_quote_tree("main", quote_item['part_number'], description, 
+                                 quantity, unit_price, total_price)
+            
+            self.status_var.set(f"Added to quote: {quote_item['part_number']} (Qty: {quantity}) - Total items: {len(self.quote_items)}")
+            
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid quantity (number).")
+        except Exception as e:
+            self.status_var.set("Error adding to quote")
+            messagebox.showerror("Error", f"Failed to add to quote:\n{str(e)}")
+    
+    def view_quote(self):
+        """Display all items currently in the quote"""
+        if not self.quote_items:
+            messagebox.showinfo("Empty Quote", "No items in quote yet.\n\nAdd main parts using 'Add to Quote' button and spare parts using 'Add Spare Part' button.")
+            return
+        
+        # Create quote summary window
+        quote_window = tk.Toplevel(self.root)
+        quote_window.title("Quote Summary")
+        quote_window.geometry("800x600")
+        quote_window.transient(self.root)
+        quote_window.grab_set()
+        
+        # Center the window
+        quote_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 400
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 300
+        quote_window.geometry(f"800x600+{x}+{y}")
+        
+        # Create content
+        frame = ttk.Frame(quote_window, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title_frame = ttk.Frame(frame)
+        title_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(title_frame, text="Quote Summary", font=("Arial", 14, "bold")).pack(side=tk.LEFT)
+        ttk.Label(title_frame, text=f"Total Items: {len(self.quote_items)}", font=("Arial", 10)).pack(side=tk.RIGHT)
+        
+        # Create notebook for different views
+        notebook = ttk.Notebook(frame)
+        notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Summary tab
+        summary_frame = ttk.Frame(notebook)
+        notebook.add(summary_frame, text="Summary")
+        
+        # Summary treeview
+        summary_columns = ("Type", "Part Number", "Customer", "Quantity", "Unit Price", "Total Price", "Added")
+        summary_tree = ttk.Treeview(summary_frame, columns=summary_columns, show="headings", height=15)
+        
+        # Configure columns
+        summary_tree.heading("Type", text="Type")
+        summary_tree.heading("Part Number", text="Part Number")
+        summary_tree.heading("Customer", text="Customer")
+        summary_tree.heading("Quantity", text="Qty")
+        summary_tree.heading("Unit Price", text="Unit Price")
+        summary_tree.heading("Total Price", text="Total Price")
+        summary_tree.heading("Added", text="Added")
+        
+        summary_tree.column("Type", width=80)
+        summary_tree.column("Part Number", width=200)
+        summary_tree.column("Customer", width=120)
+        summary_tree.column("Quantity", width=60)
+        summary_tree.column("Unit Price", width=100)
+        summary_tree.column("Total Price", width=100)
+        summary_tree.column("Added", width=120)
+        
+        # Add items to tree
+        total_quote_value = 0.0
+        for i, item in enumerate(self.quote_items, 1):
+            item_type = item['type'].upper()
+            part_number = item['part_number']
+            customer = item.get('customer_name', 'N/A')
+            quantity = item.get('quantity', 1)
+            
+            # Get pricing info
+            if item['type'] == 'main':
+                unit_price = item['data'].get('total_price', 0.0)
+            else:  # spare part
+                unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
+            
+            total_price = unit_price * quantity
+            total_quote_value += total_price
+            timestamp = item['timestamp']
+            
+            summary_tree.insert("", "end", values=(
+                item_type, part_number, customer, quantity, 
+                f"${unit_price:.2f}", f"${total_price:.2f}", timestamp
+            ))
+        
+        # Add scrollbar
+        summary_scrollbar = ttk.Scrollbar(summary_frame, orient=tk.VERTICAL, command=summary_tree.yview)
+        summary_tree.configure(yscrollcommand=summary_scrollbar.set)
+        
+        # Add right-click context menu
+        def show_item_details(event):
+            """Show detailed information for selected item"""
+            item_id = summary_tree.identify_row(event.y)
+            if item_id:
+                item_index = summary_tree.index(item_id)
+                if 0 <= item_index < len(self.quote_items):
+                    selected_item = self.quote_items[item_index]
+                    self.show_part_details_popup(selected_item, quote_window)
+        
+        summary_tree.bind("<Button-3>", show_item_details)  # Right-click
+        
+        summary_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        summary_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Details tab
+        details_frame = ttk.Frame(notebook)
+        notebook.add(details_frame, text="Details")
+        
+        # Details text widget
+        details_text = tk.Text(details_frame, wrap=tk.WORD, font=("Consolas", 9))
+        details_scrollbar = ttk.Scrollbar(details_frame, orient=tk.VERTICAL, command=details_text.yview)
+        details_text.configure(yscrollcommand=details_scrollbar.set)
+        
+        details_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        details_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Add detailed information
+        details_text.insert(tk.END, "DETAILED QUOTE BREAKDOWN\n")
+        details_text.insert(tk.END, "=" * 50 + "\n\n")
+        
+        for i, item in enumerate(self.quote_items, 1):
+            details_text.insert(tk.END, f"ITEM {i}: {item['type'].upper()} PART\n")
+            details_text.insert(tk.END, "-" * 30 + "\n")
+            details_text.insert(tk.END, f"Part Number: {item['part_number']}\n")
+            details_text.insert(tk.END, f"Customer: {item.get('customer_name', 'N/A')}\n")
+            details_text.insert(tk.END, f"Quantity: {item.get('quantity', 1)}\n")
+            details_text.insert(tk.END, f"Added: {item['timestamp']}\n")
+            
+            if item['type'] == 'main':
+                data = item['data']
+                details_text.insert(tk.END, f"Model: {data.get('model', 'N/A')}\n")
+                details_text.insert(tk.END, f"Voltage: {data.get('voltage', 'N/A')}\n")
+                details_text.insert(tk.END, f"Probe Length: {data.get('probe_length', 'N/A')}\"\n")
+                details_text.insert(tk.END, f"Process Connection: {data.get('process_connection_type', 'N/A')}\n")
+                details_text.insert(tk.END, f"Unit Price: ${data.get('total_price', 0):.2f}\n")
+            else:  # spare part
+                data = item['data']
+                details_text.insert(tk.END, f"Description: {data.get('description', 'N/A')}\n")
+                details_text.insert(tk.END, f"Unit Price: ${data.get('pricing', {}).get('total_price', 0):.2f}\n")
+            
+            details_text.insert(tk.END, "\n")
+        
+        details_text.config(state=tk.DISABLED)
+        
+        # Summary frame at bottom
+        summary_bottom_frame = ttk.Frame(frame)
+        summary_bottom_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Total value
+        ttk.Label(summary_bottom_frame, text=f"Total Quote Value: ${total_quote_value:.2f}", 
+                 font=("Arial", 12, "bold")).pack(side=tk.LEFT)
+        
+        # Buttons
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def remove_selected_item():
+            selection = summary_tree.selection()
+            if selection:
+                item_id = selection[0]
+                item_index = summary_tree.index(item_id)
+                if 0 <= item_index < len(self.quote_items):
+                    removed_item = self.quote_items.pop(item_index)
+                    messagebox.showinfo("Item Removed", f"Removed from quote:\n{removed_item['part_number']}")
+                    quote_window.destroy()
+                    self.view_quote()  # Refresh the view
+        
+        def clear_quote():
+            if messagebox.askyesno("Clear Quote", "Are you sure you want to clear all items from the quote?"):
+                self.quote_items.clear()
+                messagebox.showinfo("Quote Cleared", "All items removed from quote.")
+                quote_window.destroy()
+        
+        def export_full_quote():
+            print("=== EXPORT_FULL_QUOTE FUNCTION CALLED ===")
+            
+            if not self.quote_items:
+                messagebox.showwarning("Empty Quote", "No items to export.")
+                return
+            
+            # Validate initials are entered (same logic as main export)
+            user_initials = self.initials_var.get().strip()
+            if not user_initials:
+                messagebox.showerror("Initials Required", 
+                    "You must enter your initials before exporting a quote.\n\n"
+                    "This is required for quote number generation and tracking.")
+                return
+            
+            if len(user_initials) < 2:
+                messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
+                return
+            
+            # Generate quote number if not already generated
+            if not self.current_quote_number:
+                if not self.generate_new_quote_number():
+                    return  # Failed to generate quote number
+            
+            try:
+                # Use quote number as default filename
+                default_filename = f"{self.current_quote_number}.docx"
+                
+                filename = filedialog.asksaveasfilename(
+                    defaultextension=".docx",
+                    filetypes=[("Word documents", "*.docx"), ("All files", "*.*")],
+                    title="Export Complete Quote",
+                    initialfile=default_filename
+                )
+                
+                if filename:
+                    print(f"Export filename selected: {filename}")
+                    
+                    # Try to use Word template system for the first main item
+                    success = False
+                    main_items = [item for item in self.quote_items if item.get('type') == 'main']
+                    
+                    if main_items:
+                        # Use the first main item for template export
+                        main_item = main_items[0]
+                        part_number = main_item.get('part_number', '')
+                        print(f"Using main item for template: {part_number}")
+                        
+                        # Extract data properly from the quote item
+                        quote_data = main_item.get('data', {})
+                        print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+                        
+                        # Set current_quote_data temporarily for the export
+                        original_quote_data = self.current_quote_data
+                        self.current_quote_data = quote_data
+                        
+                        # Try Word template export first
+                        try:
+                            from export.word_template_processor import generate_word_quote
+                            
+                            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+                            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                            print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                            
+                            # Get customer information
+                            customer_name = self.company_var.get() or "Customer Name"
+                            contact_name = self.contact_person_var.get() or "Contact Person"
+                            
+                            # Use the generated quote number (guaranteed to exist at this point)
+                            assert self.current_quote_number is not None
+                            quote_number = self.current_quote_number
+                            
+                            # Get pricing info
+                            unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
+                            if unit_price and unit_price > 0:
+                                unit_price = f"{unit_price:.2f}"
+                            else:
+                                unit_price = "Please Contact"
+                            
+                            print(f"🚀 Word template export with:")
+                            print(f"   Model: '{model}'")
+                            print(f"   Part Number: '{part_number}'")
+                            print(f"   Customer: '{customer_name}'")
+                            print(f"   Unit Price: '{unit_price}'")
+                            
+                            # Generate the quote using Word template system
+                            success = generate_word_quote(
+                                model=model,
+                                customer_name=customer_name,
+                                attention_name=contact_name,
+                                quote_number=quote_number,
+                                part_number=part_number,
+                                unit_price=unit_price,
+                                supply_voltage=quote_data.get('voltage', '115VAC'),
+                                probe_length=str(quote_data.get('probe_length', 12)),
+                                output_path=filename,
+                                # Additional specs from parsed data
+                                insulator_material=self._extract_insulator_material_name(quote_data),
+                                insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
+                                probe_material=quote_data.get('probe_material_name', '316SS'),
+                                max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
+                                max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
+                                output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
+                                process_connection_size=f"{quote_data.get('process_connection_size', '¾')}\""
+                            )
+                            print(f"✅ Word template export success: {success}")
+                            
+                        except Exception as e:
+                            print(f"❌ Word template export failed: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            success = False
+                        
+                        # If Word template failed, try RTF fallback
+                        if not success:
+                            print("📄 Trying RTF template fallback...")
+                            success = self._try_rtf_template_export(filename)
+                        
+                        # Restore original quote data
+                        self.current_quote_data = original_quote_data
+                    
+                    if not success:
+                        print("❌ Template export failed, using old quote generator...")
+                        # Create combined data for export
+                        combined_data = {
+                            'type': 'multi_item_quote',
+                            'items': self.quote_items,
+                            'total_items': len(self.quote_items),
+                            'total_price': total_quote_value,
+                            'export_timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        
+                        # Export to Word using old system
+                        output_path = self.quote_generator.generate_quote(combined_data, output_path=filename)
+                        success = bool(output_path)
+                    
+                    if success:
+                        # Save quote to database after successful export
+                        try:
+                            # Calculate total for database save
+                            customer_name = self.company_var.get().strip()
+                            if customer_name and self.current_quote_number:
+                                if self.db_manager.connect():
+                                    # At this point current_quote_number is guaranteed to be set
+                                    assert self.current_quote_number is not None
+                                    
+                                    db_save_success = self.db_manager.save_quote(
+                                        quote_number=self.current_quote_number,
+                                        customer_name=customer_name,
+                                        customer_email=self.email_var.get().strip(),
+                                        quote_items=self.quote_items,
+                                        total_price=total_quote_value,
+                                        user_initials=user_initials
+                                    )
+                                    
+                                    if db_save_success:
+                                        self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
+                                    else:
+                                        self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
+                                    
+                                    self.db_manager.disconnect()
+                        except Exception as db_error:
+                            print(f"Database save error: {db_error}")
+                            # Don't show error to user since export was successful
+                        
+                        messagebox.showinfo("Export Success", f"Complete quote exported to:\n{filename}\n\nQuote Number: {self.current_quote_number}")
+                        quote_window.destroy()
+                    else:
+                        messagebox.showerror("Export Error", "Failed to export quote using all available methods.")
+                    
+            except Exception as e:
+                print(f"Export error: {e}")
+                import traceback
+                traceback.print_exc()
+                messagebox.showerror("Export Error", f"Failed to export quote:\n{str(e)}")
+        
+        ttk.Button(button_frame, text="Remove Selected", command=remove_selected_item).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="Clear Quote", command=clear_quote).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="Export Quote", command=export_full_quote).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="Close", command=quote_window.destroy).pack(side=tk.RIGHT)
+    
     def on_closing(self):
         """Handle window closing"""
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
@@ -652,6 +1684,420 @@ Length pricing is automatically calculated for probe assemblies.
     def run(self):
         """Start the application main loop"""
         self.root.mainloop()
+
+    def parse_spare_part(self):
+        """Parse spare part number and show information"""
+        spare_part_number = self.spare_part_var.get().strip()
+        
+        if not spare_part_number:
+            messagebox.showwarning("Input Required", "Please enter a spare part number to parse.")
+            return
+        
+        try:
+            self.status_var.set("Parsing spare part...")
+            self.root.update()
+            
+            # Use spare parts manager to parse the part
+            result = self.spare_parts_manager.parse_and_quote_spare_part(spare_part_number)
+            
+            if result.get('error'):
+                self.status_var.set("Parse failed")
+                messagebox.showerror("Parse Error", f"Failed to parse spare part:\n{result['error']}")
+                return
+            
+            self.status_var.set(f"Spare part parsed successfully: {result.get('description', 'N/A')}")
+            
+        except Exception as e:
+            self.status_var.set("Error occurred")
+            messagebox.showerror("Error", f"An error occurred while parsing spare part:\n{str(e)}")
+    
+    def edit_quote_item(self):
+        """Edit selected quote item"""
+        selection = self.quote_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select an item to edit.")
+            return
+        
+        # Get selected item
+        item_id = selection[0]
+        item_values = self.quote_tree.item(item_id, 'values')
+        
+        if not item_values:
+            return
+        
+        # For now, just show a message - detailed editing can be implemented later
+        messagebox.showinfo("Edit Item", f"Editing functionality for {item_values[1]} will be implemented in a future version.")
+    
+    def remove_quote_item(self):
+        """Remove selected quote item"""
+        selection = self.quote_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select an item to remove.")
+            return
+        
+        # Get selected item
+        item_id = selection[0]
+        item_values = self.quote_tree.item(item_id, 'values')
+        
+        if not item_values:
+            return
+        
+        # Confirm removal
+        if messagebox.askyesno("Remove Item", f"Remove {item_values[1]} from quote?"):
+            # Remove from treeview
+            self.quote_tree.delete(item_id)
+            
+            # Remove from quote_items list (find by part number)
+            part_number = item_values[1]
+            self.quote_items = [item for item in self.quote_items if item.get('part_number') != part_number]
+            
+            # Update total
+            self.update_quote_total()
+            
+            self.status_var.set(f"Removed {part_number} from quote")
+    
+    def clear_quote(self):
+        """Clear all items from quote"""
+        if not self.quote_items:
+            messagebox.showinfo("Empty Quote", "Quote is already empty.")
+            return
+        
+        if messagebox.askyesno("Clear Quote", "Are you sure you want to clear all items from the quote?"):
+            # Clear treeview
+            for item in self.quote_tree.get_children():
+                self.quote_tree.delete(item)
+            
+            # Clear quote items list
+            self.quote_items.clear()
+            
+            # Update total
+            self.update_quote_total()
+            
+            self.status_var.set("Quote cleared")
+    
+    def update_quote_total(self):
+        """Update the total quote value display"""
+        total_value = 0.0
+        
+        for item in self.quote_items:
+            if item['type'] == 'main':
+                unit_price = item['data'].get('total_price', 0.0)
+            else:  # spare part
+                unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
+            
+            quantity = item.get('quantity', 1)
+            total_value += unit_price * quantity
+        
+        self.total_label.config(text=f"Total: ${total_value:.2f}")
+    
+    def update_quote_number_display(self):
+        """Update the quote number display"""
+        if self.current_quote_number:
+            self.quote_number_label.config(text=f"Quote #: {self.current_quote_number}")
+        else:
+            self.quote_number_label.config(text="Quote #: Not Generated")
+    
+    def generate_new_quote_number(self) -> bool:
+        """Generate a new quote number based on user initials. Returns True if successful."""
+        user_initials = self.initials_var.get().strip()
+        
+        if not user_initials:
+            messagebox.showerror("Initials Required", "Please enter your initials before generating a quote number.")
+            return False
+        
+        if len(user_initials) < 2:
+            messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
+            return False
+        
+        try:
+            # Connect to database and generate quote number
+            if not self.db_manager.connect():
+                messagebox.showerror("Database Error", "Could not connect to database to generate quote number.")
+                return False
+            
+            self.current_quote_number = self.db_manager.generate_quote_number(user_initials)
+            self.update_quote_number_display()
+            
+            self.status_var.set(f"Generated quote number: {self.current_quote_number}")
+            return True
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate quote number: {str(e)}")
+            return False
+        finally:
+            self.db_manager.disconnect()
+    
+    def add_to_quote_tree(self, item_type, part_number, description, quantity, unit_price, total_price):
+        """Add an item to the quote tree display"""
+        self.quote_tree.insert("", "end", values=(
+            item_type.upper(),
+            part_number,
+            description,
+            quantity,
+            f"${unit_price:.2f}",
+            f"${total_price:.2f}"
+        ))
+        
+        # Update total
+        self.update_quote_total()
+
+    def show_part_details_popup(self, quote_item: Dict[str, Any], parent_window: Union[tk.Tk, tk.Toplevel]):
+        """Show detailed part information in a popup window"""
+        # Create details popup window
+        details_window = tk.Toplevel(parent_window)
+        details_window.title(f"Part Details - {quote_item['part_number']}")
+        details_window.geometry("800x700")
+        details_window.transient(parent_window)
+        details_window.grab_set()
+        
+        # Center the window
+        details_window.update_idletasks()
+        x = parent_window.winfo_x() + (parent_window.winfo_width() // 2) - 400
+        y = parent_window.winfo_y() + (parent_window.winfo_height() // 2) - 350
+        details_window.geometry(f"800x700+{x}+{y}")
+        
+        # Create content frame
+        main_frame = ttk.Frame(details_window, padding="15")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text=f"Detailed Information: {quote_item['part_number']}", 
+                               font=("Arial", 16, "bold"))
+        title_label.pack(pady=(0, 10))
+        
+        # Create notebook for different data categories
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Basic Info Tab
+        basic_frame = ttk.Frame(notebook)
+        notebook.add(basic_frame, text="Basic Info")
+        self._create_basic_info_tab(basic_frame, quote_item)
+        
+        # Technical Specs Tab
+        specs_frame = ttk.Frame(notebook)
+        notebook.add(specs_frame, text="Technical Specs")
+        self._create_technical_specs_tab(specs_frame, quote_item)
+        
+        # Pricing Breakdown Tab
+        pricing_frame = ttk.Frame(notebook)
+        notebook.add(pricing_frame, text="Pricing Breakdown")
+        self._create_pricing_breakdown_tab(pricing_frame, quote_item)
+        
+        # Raw Data Tab
+        raw_data_frame = ttk.Frame(notebook)
+        notebook.add(raw_data_frame, text="Raw Data")
+        self._create_raw_data_tab(raw_data_frame, quote_item)
+        
+        # Close button
+        close_button = ttk.Button(main_frame, text="Close", command=details_window.destroy)
+        close_button.pack(pady=(10, 0))
+    
+    def _create_basic_info_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
+        """Create basic information tab"""
+        data = quote_item.get('data', {})
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(parent)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Add basic information
+        ttk.Label(scrollable_frame, text="Quote Item Information", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
+        
+        basic_info = [
+            ("Part Number:", quote_item.get('part_number', 'N/A')),
+            ("Item Type:", quote_item.get('type', 'N/A').upper()),
+            ("Customer:", quote_item.get('customer_name', 'N/A')),
+            ("Quantity:", str(quote_item.get('quantity', 1))),
+            ("Added to Quote:", quote_item.get('timestamp', 'N/A')),
+            ("", ""),  # Spacer
+            ("Product Information", ""),
+            ("Model:", data.get('model', 'N/A')),
+            ("Voltage:", data.get('voltage', 'N/A')),
+            ("Probe Material:", data.get('probe_material_name', data.get('probe_material', 'N/A'))),
+            ("Probe Length:", f"{data.get('probe_length', 'N/A')}\"" if data.get('probe_length') else 'N/A'),
+            ("Probe Diameter:", data.get('probe_diameter', 'N/A')),
+            ("Process Connection:", data.get('process_connection', 'N/A')),
+            ("Housing:", data.get('housing', 'N/A')),
+            ("Output:", data.get('output', 'N/A')),
+        ]
+        
+        row = 1
+        for label, value in basic_info:
+            if label == "":  # Spacer
+                row += 1
+                continue
+            elif value == "":  # Section header
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 11, "bold")).grid(row=row, column=0, columnspan=2, pady=(10, 5), sticky="w")
+            else:
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 9, "bold")).grid(row=row, column=0, sticky="w", padx=(0, 10))
+                ttk.Label(scrollable_frame, text=str(value), font=("Arial", 9)).grid(row=row, column=1, sticky="w")
+            row += 1
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def _create_technical_specs_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
+        """Create technical specifications tab"""
+        data = quote_item.get('data', {})
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(parent)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Add technical specifications
+        ttk.Label(scrollable_frame, text="Technical Specifications", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
+        
+        specs = [
+            ("Operating Limits", ""),
+            ("Max Temperature:", f"{data.get('max_temperature', 'N/A')}°F" if data.get('max_temperature') else 'N/A'),
+            ("Max Pressure:", f"{data.get('max_pressure', 'N/A')} PSI" if data.get('max_pressure') else 'N/A'),
+            ("", ""),
+            ("Insulator Information", ""),
+            ("Insulator Display:", data.get('insulator', 'N/A')),
+            ("Base Insulator Length:", f"{data.get('base_insulator_length', 'N/A')}\"" if data.get('base_insulator_length') else 'N/A'),
+            ("Insulator Material:", data.get('insulator_material', 'N/A')),
+            ("", ""),
+            ("Options & Warnings", ""),
+        ]
+        
+        # Add options
+        options = data.get('options', [])
+        if options:
+            for option in options:
+                specs.append((f"Option:", option))
+        else:
+            specs.append(("Options:", "None"))
+        
+        specs.append(("", ""))
+        
+        # Add warnings
+        warnings = data.get('warnings', [])
+        if warnings:
+            for warning in warnings:
+                specs.append((f"Warning:", warning))
+        else:
+            specs.append(("Warnings:", "None"))
+        
+        # Add errors
+        errors = data.get('errors', [])
+        if errors:
+            specs.append(("", ""))
+            for error in errors:
+                specs.append((f"Error:", error))
+        
+        row = 1
+        for label, value in specs:
+            if label == "":  # Spacer
+                row += 1
+                continue
+            elif value == "":  # Section header
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 11, "bold")).grid(row=row, column=0, columnspan=2, pady=(10, 5), sticky="w")
+            else:
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 9, "bold")).grid(row=row, column=0, sticky="w", padx=(0, 10))
+                ttk.Label(scrollable_frame, text=str(value), font=("Arial", 9)).grid(row=row, column=1, sticky="w")
+            row += 1
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def _create_pricing_breakdown_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
+        """Create pricing breakdown tab"""
+        data = quote_item.get('data', {})
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(parent)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Add pricing information
+        ttk.Label(scrollable_frame, text="Pricing Breakdown", font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky="w")
+        
+        pricing = [
+            ("Base Price:", f"${data.get('base_price', 0):.2f}"),
+            ("Length Cost:", f"${data.get('length_cost', 0):.2f}"),
+            ("Length Surcharge:", f"${data.get('length_surcharge', 0):.2f}"),
+            ("Option Cost:", f"${data.get('option_cost', 0):.2f}"),
+            ("Insulator Cost:", f"${data.get('insulator_cost', 0):.2f}"),
+            ("Connection Cost:", f"${data.get('connection_cost', 0):.2f}"),
+            ("", ""),
+            ("Unit Total:", f"${data.get('total_price', 0):.2f}"),
+            ("Quantity:", str(quote_item.get('quantity', 1))),
+            ("Line Total:", f"${data.get('total_price', 0) * quote_item.get('quantity', 1):.2f}"),
+        ]
+        
+        row = 1
+        for label, value in pricing:
+            if label == "":  # Spacer
+                row += 1
+                continue
+            elif label in ["Unit Total:", "Line Total:"]:  # Highlight totals
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", padx=(0, 10))
+                ttk.Label(scrollable_frame, text=str(value), font=("Arial", 10, "bold")).grid(row=row, column=1, sticky="w")
+            else:
+                ttk.Label(scrollable_frame, text=label, font=("Arial", 9, "bold")).grid(row=row, column=0, sticky="w", padx=(0, 10))
+                ttk.Label(scrollable_frame, text=str(value), font=("Arial", 9)).grid(row=row, column=1, sticky="w")
+            row += 1
+        
+        # Add price breakdown if available
+        price_breakdown = data.get('price_breakdown', [])
+        if price_breakdown:
+            ttk.Label(scrollable_frame, text="Detailed Breakdown:", font=("Arial", 11, "bold")).grid(row=row, column=0, columnspan=2, pady=(10, 5), sticky="w")
+            row += 1
+            for item in price_breakdown:
+                ttk.Label(scrollable_frame, text=str(item), font=("Arial", 9)).grid(row=row, column=0, columnspan=2, sticky="w", padx=(10, 0))
+                row += 1
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def _create_raw_data_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
+        """Create raw data tab showing all parsed data"""
+        # Create text widget with scrollbar
+        text_frame = ttk.Frame(parent)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+        
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, font=("Consolas", 9))
+        text_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        text_widget.configure(yscrollcommand=text_scrollbar.set)
+        
+        # Add raw data
+        import json
+        raw_data_text = "QUOTE ITEM RAW DATA\n"
+        raw_data_text += "=" * 50 + "\n\n"
+        raw_data_text += json.dumps(quote_item, indent=2, default=str)
+        
+        text_widget.insert(tk.END, raw_data_text)
+        text_widget.config(state=tk.DISABLED)
+        
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 if __name__ == "__main__":
     app = MainWindow()

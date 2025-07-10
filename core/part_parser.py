@@ -62,6 +62,7 @@ class PartNumberParser:
                 'oring_material': 'Viton',
                 'insulator_material': 'U',
                 'insulator_length': 4.0,
+                'probe_diameter': '½"',
                 'housing_type': 'Cast Aluminum, NEMA 7, C, D; NEMA 9, E, F, & G',
                 'output_type': '10 Amp SPDT Relay',
                 'max_pressure': 300,
@@ -74,6 +75,7 @@ class PartNumberParser:
                 'oring_material': 'Viton',
                 'insulator_material': 'TEF',
                 'insulator_length': 4.0,
+                'probe_diameter': '½"',
                 'housing_type': 'Cast Aluminum, NEMA 7, C, D; NEMA 9, E, F, & G',
                 'output_type': '8mA-16mA Loop',
                 'max_pressure': 300,
@@ -86,6 +88,7 @@ class PartNumberParser:
                 'oring_material': 'Viton',
                 'insulator_material': 'DEL',
                 'insulator_length': 4.0,
+                'probe_diameter': '½"',
                 'housing_type': 'Cast Aluminum, Explosion Proof',
                 'output_type': '5 Amp DPDT Relay',
                 'max_pressure': 1500,
@@ -98,6 +101,7 @@ class PartNumberParser:
                 'oring_material': 'Viton',
                 'insulator_material': 'TEF',
                 'insulator_length': 4.0,
+                'probe_diameter': '½"',
                 'housing_type': 'Cast Aluminum, NEMA 7, D',
                 'output_type': '2 Form C contacts 5 Amp DPDT',
                 'max_pressure': 1500,
@@ -139,6 +143,9 @@ class PartNumberParser:
             # Get model defaults
             defaults = self.model_defaults.get(result['model'], {})
             result.update(defaults)
+            
+            # Apply material-specific business rules
+            self._apply_material_rules(result)
             
             # Parse remaining parts (options, insulators, connections)
             if len(parts) > 4:
@@ -211,6 +218,18 @@ class PartNumberParser:
             # Unknown option - add as warning
             else:
                 result['warnings'].append(f"Unknown option or modifier: {part}")
+    
+    def _apply_material_rules(self, result: Dict[str, Any]):
+        """Apply material-specific business rules"""
+        
+        probe_material = result.get('probe_material', 'S')
+        
+        # Business Rule: Halar coating requires Teflon insulator
+        if probe_material == 'H':  # Halar coated probe
+            # Only change if no explicit insulator override in part number
+            if not result.get('insulator'):
+                result['insulator_material'] = 'TEF'  # Switch to Teflon
+                result['warnings'].append("Halar coating: Insulator automatically changed to Teflon")
     
     def _parse_insulator(self, insulator_part: str) -> Dict[str, Any]:
         """
@@ -300,17 +319,22 @@ class PartNumberParser:
         """Calculate derived specifications based on configuration"""
         
         # Max temperature from insulator material
+        insulator_material = None
         if result.get('insulator'):
             insulator_material = result['insulator']['material']
-            temp_ratings = {
-                'TEF': 450,
-                'UHMWPE': 180,
-                'U': 180,
-                'DEL': 250,
-                'PEEK': 550,
-                'CER': 800
-            }
-            result['max_temperature'] = temp_ratings.get(insulator_material, 180)
+        else:
+            # Use default insulator material (which may have been updated by material rules)
+            insulator_material = result.get('insulator_material', 'U')
+        
+        temp_ratings = {
+            'TEF': 450,
+            'UHMWPE': 180,
+            'U': 180,
+            'DEL': 250,
+            'PEEK': 550,
+            'CER': 800
+        }
+        result['max_temperature'] = temp_ratings.get(insulator_material, 180)
         
         # Max pressure from connection size
         if result.get('process_connection'):
@@ -326,6 +350,11 @@ class PartNumberParser:
         # Probe material name
         probe_material = result.get('probe_material', 'S')
         result['probe_material_name'] = self.material_codes.get(probe_material, f"Unknown ({probe_material})")
+        
+        # Check for 3/4" OD option and update probe diameter
+        option_codes = [opt.get('code', '') for opt in result.get('options', [])]
+        if '3/4"OD' in option_codes:
+            result['probe_diameter'] = '¾"'
         
         # Calculate base insulator length based on probe length
         probe_length = result.get('probe_length', 10.0)
@@ -441,10 +470,12 @@ class PartNumberParser:
             'model': parsed_part.get('model', ''),
             'voltage': parsed_part.get('voltage', ''),
             'probe_material': parsed_part.get('probe_material_name', ''),
+            'probe_material_name': parsed_part.get('probe_material_name', ''),
             'probe_length': parsed_part.get('probe_length', ''),
             'process_connection': self._format_connection_display(parsed_part),
             'insulator': self._format_insulator_display(parsed_part),
             'base_insulator_length': parsed_part.get('base_insulator_length', 4.0),
+            'probe_diameter': parsed_part.get('probe_diameter', '½"'),
             'housing': parsed_part.get('housing_type', ''),
             'output': parsed_part.get('output_type', ''),
             'max_temperature': parsed_part.get('max_temperature', ''),

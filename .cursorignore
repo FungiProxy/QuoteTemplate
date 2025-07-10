@@ -1,0 +1,100 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+quote_env/
+venv/
+env/
+.venv/
+.env/
+
+# Database files (large binary files that don't need AI analysis)
+*.db
+*.sqlite
+*.sqlite3
+database/*.db
+# database/*.sql
+database/backup_quotes.sql
+database/quotes_export.sql
+database/sample_data.sql
+database/quotes_back*.db
+
+# Log files (not useful for code analysis)
+logs/
+*.log
+
+# Generated export files (keep templates, ignore generated docs)
+export/templates/*.docx
+test_output.docx
+*.docx
+*.pdf
+
+# Documentation files (keep markdown, ignore binary docs)
+docs/*.pdf
+docs/*.docx
+docs/*.sql
+
+# IDE and editor files
+.vscode/
+.idea/
+*.code-workspace
+*.iml
+*.ipr
+*.iws
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+*.backup
+*.old
+
+# Distribution and packaging
+build/
+dist/
+*.egg-info/
+wheels/
+
+# Test coverage and reports
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+
+# Large data files (but keep JSON config files)
+*.csv
+*.xlsx
+*.xls
+
+# Binary files
+*.exe
+*.dll
+*.pyd
+*.so
+
+# Configuration files that might contain sensitive data
+.env
+.env.local
+.env.production
+
+# Babbitt Quote Generator specific ignores
+# Keep JSON data files (they contain important product/pricing data)
+# Keep test files (they contain validation logic)
+# Keep template files (they contain document generation logic)
+# Ignore generated quotes and database files 
