@@ -1,0 +1,110 @@
+{
+  "C": {
+    "name": "Ceramic",
+    "description": "Ceramic Probe",
+    "base_price_adder": 150.0,
+    "length_adder_per_foot": 70.0,
+    "length_adder_per_inch": 5.83,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS6000",
+      "LS7000"
+    ]
+  },
+  "CPVC": {
+    "name": "CPVC Blind End",
+    "description": "CPVC Blind End Probe with Integrated NPT Nipple",
+    "base_price_adder": 400.0,
+    "length_adder_per_foot": 50.0,
+    "length_adder_per_inch": 50.0,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS6000",
+      "LS7000"
+    ]
+  },
+  "H": {
+    "name": "Halar Coated",
+    "description": "Halar Coated Probe",
+    "base_price_adder": 110.0,
+    "length_adder_per_foot": 110.0,
+    "length_adder_per_inch": 9.17,
+    "nonstandard_length_surcharge": 300.0,
+    "max_length_with_coating": 72.0,
+    "compatible_models": [
+      "LS2000",
+      "LS2100",
+      "LS6000",
+      "LS7000",
+      "LS7000/2",
+      "LS8000",
+      "LS8000/2",
+      "LT9000"
+    ]
+  },
+  "S": {
+    "name": "316 Stainless Steel",
+    "description": "316 Stainless Steel Probe",
+    "base_price_adder": 0.0,
+    "length_adder_per_foot": 45.0,
+    "length_adder_per_inch": 3.75,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS2000",
+      "LS2100",
+      "LS6000",
+      "LS7000",
+      "LS8000",
+      "FS10000",
+      "LS7500",
+      "LS8500"
+    ]
+  },
+  "T": {
+    "name": "Teflon Blind End",
+    "description": "Teflon Blind End Probe",
+    "base_price_adder": 70.0,
+    "length_adder_per_foot": 50.0,
+    "length_adder_per_inch": 50.0,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS2000",
+      "LS2100"
+    ]
+  },
+  "TS": {
+    "name": "Teflon Sleeve",
+    "description": "Teflon Sleeve Probe",
+    "base_price_adder": 80.0,
+    "length_adder_per_foot": 60.0,
+    "length_adder_per_inch": 5.0,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS2000",
+      "LS2100",
+      "LS6000",
+      "LS7000",
+      "LS7000/2",
+      "LS8000",
+      "LS8000/2",
+      "LT9000"
+    ]
+  },
+  "U": {
+    "name": "UHMWPE Blind End",
+    "description": "UHMWPE Blind End Probe",
+    "base_price_adder": 30.0,
+    "length_adder_per_foot": 40.0,
+    "length_adder_per_inch": 40.0,
+    "nonstandard_length_surcharge": 0.0,
+    "max_length_with_coating": 999.0,
+    "compatible_models": [
+      "LS2000"
+    ]
+  }
+}

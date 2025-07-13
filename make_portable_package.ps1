@@ -10,9 +10,9 @@ if (Test-Path $TargetDir) {
 
 # List of files to copy
 $files = @(
-    "BabbittQuoteGenerator.exe",
-    "launcher.exe",
-    "update_manager.exe",
+    "dist/BabbittQuoteGenerator.exe",
+    "dist/launcher.exe",
+    "dist/update_manager.exe",
     "USER_GUIDE.md",
     "INSTALLER_GUIDE.md",
     "QUICK_DEPLOYMENT_GUIDE.md"

@@ -1,0 +1,62 @@
+{
+  "CER": {
+    "name": "Ceramic",
+    "description": "Ceramic Insulator",
+    "price_adder": 200.0,
+    "max_temp_rating": "800F",
+    "standard_length": 4.0,
+    "compatible_models": [
+      "LS6000",
+      "LS7000"
+    ]
+  },
+  "DEL": {
+    "name": "Delrin",
+    "description": "Delrin Insulator",
+    "price_adder": 0.0,
+    "max_temp_rating": "250F",
+    "standard_length": 4.0,
+    "compatible_models": [
+      "LS6000",
+      "LS7500",
+      "LS8500"
+    ]
+  },
+  "PEEK": {
+    "name": "PEEK",
+    "description": "PEEK Insulator",
+    "price_adder": 120.0,
+    "max_temp_rating": "550F",
+    "standard_length": 4.0,
+    "compatible_models": [
+      "LS6000",
+      "LS7000"
+    ]
+  },
+  "TEF": {
+    "name": "Teflon",
+    "description": "Teflon Insulator",
+    "price_adder": 40.0,
+    "max_temp_rating": "450F",
+    "standard_length": 4.0,
+    "compatible_models": [
+      "LS2100",
+      "LS6000",
+      "LS7000",
+      "LS7000/2",
+      "LS8000",
+      "LS8000/2",
+      "LT9000"
+    ]
+  },
+  "U": {
+    "name": "UHMWPE",
+    "description": "Ultra High Molecular Weight Polyethylene",
+    "price_adder": 0.0,
+    "max_temp_rating": "180F",
+    "standard_length": 4.0,
+    "compatible_models": [
+      "LS2000"
+    ]
+  }
+}

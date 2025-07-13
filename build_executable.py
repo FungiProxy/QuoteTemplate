@@ -280,11 +280,11 @@ if __name__ == "__main__":
     updater.run_update_check()
 '''
         
-        updater_file = self.project_root / "auto_updater.py"
-        with open(updater_file, 'w') as f:
-            f.write(updater_code)
-            
-        return updater_file
+    updater_file = self.project_root / "auto_updater.py"
+    with open(updater_file, 'w') as f:
+        f.write(updater_code)
+    
+    return updater_file
     
     def create_installer_script(self):
         """Create installer script for easy deployment"""
