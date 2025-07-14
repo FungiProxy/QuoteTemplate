@@ -171,13 +171,16 @@ class ShortcutManagerDialog:
         self.shortcut_entry = ttk.Entry(form_frame, textvariable=self.shortcut_var, width=20)
         self.shortcut_entry.grid(row=0, column=1, sticky="ew", pady=(0, 5))
         
-        # Add validation for alphanumeric only
+        # Add validation for alphanumeric only and autocapitalization
         def validate_shortcut(*args):
             current = self.shortcut_var.get()
             # Only allow letters and numbers
             filtered = ''.join(c for c in current if c.isalnum())
             if current != filtered:
                 self.shortcut_var.set(filtered)
+            # Auto-capitalize
+            if current != current.upper():
+                self.shortcut_var.set(current.upper())
         
         self.shortcut_var.trace('w', validate_shortcut)
         
@@ -187,11 +190,27 @@ class ShortcutManagerDialog:
         self.part_number_entry = ttk.Entry(form_frame, textvariable=self.part_number_var, width=30)
         self.part_number_entry.grid(row=1, column=1, sticky="ew", pady=(0, 5))
         
+        # Add autocapitalization for part number
+        def autocapitalize_part_number(*args):
+            current = self.part_number_var.get()
+            if current != current.upper():
+                self.part_number_var.set(current.upper())
+        
+        self.part_number_var.trace('w', autocapitalize_part_number)
+        
         # Description entry
         ttk.Label(form_frame, text="Description:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 15))
         self.description_var = tk.StringVar()
         self.description_entry = ttk.Entry(form_frame, textvariable=self.description_var, width=30)
         self.description_entry.grid(row=2, column=1, sticky="ew", pady=(0, 15))
+        
+        # Add autocapitalization for description
+        def autocapitalize_description(*args):
+            current = self.description_var.get()
+            if current != current.upper():
+                self.description_var.set(current.upper())
+        
+        self.description_var.trace('w', autocapitalize_description)
         
         # Buttons
         button_frame = ttk.Frame(form_frame)

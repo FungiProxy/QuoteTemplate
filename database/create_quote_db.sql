@@ -240,8 +240,8 @@ INSERT INTO options (code, name, description, price, price_type, category, compa
 -- TEF and PEEK removed from options - these are handled as insulators via XINS format
 -- ('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
 -- ('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
-('SSHSE', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
-('VRHSE', 'Epoxy Housing', 'Epoxy Housing (Chemical Resistant)', 150.00, 'fixed', 'housing', 'ALL', NULL),
+('SSHOUSING', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
+('VRHOUSING', 'Epoxy Housing', 'Epoxy Housing (Chemical Resistant)', 150.00, 'fixed', 'housing', 'ALL', NULL),
 ('3/4"OD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
 
 -- POPULATE INSULATORS
@@ -404,6 +404,20 @@ INSERT INTO spare_parts (part_number, name, description, price, category, compat
 ('FS10000-NEMA-4X-WINDOWED-ENCLOSURE', 'FS10000-NEMA 4X Windowed Enclosure', 'FS10000 NEMA 4X Windowed Enclosure', 300.00, 'housing', '["FS10000"]', NULL, 0, 0, 0),
 ('FS10000-REDDOT-GALB-2-OR', 'FS10000-REDDOT-GALB-2-OR', 'FS10000 Aluminum Probe Housing', 100.00, 'housing', '["FS10000"]', 'Aluminum Probe Housing', 0, 0, 0),
 ('FS10000-COAXIAL-CABLE-15FT', '15 Feet Coaxial Cable w/ Connectors', 'FS10000 15 Feet Coaxial Cable with Connectors', 100.00, 'cable', '["FS10000"]', NULL, 0, 0, 0);
+
+-- POPULATE MODEL SHORTCUTS - Quick access to base models
+INSERT INTO part_number_shortcuts (shortcut, part_number, description) VALUES
+('2', 'LS2000-115VAC-S-12"', 'LS2000 Base Model'),
+('21', 'LS2100-24VDC-S-12"', 'LS2100 Base Model'),
+('6', 'LS6000-115VAC-S-12"', 'LS6000 Base Model'),
+('7', 'LS7000-115VAC-S-12"', 'LS7000 Base Model'),
+('72', 'LS7000/2-115VAC-H-12"', 'LS7000/2 Base Model'),
+('75', 'LS7500FR-115VAC-S-12"', 'LS7500 Base Model'),
+('8', 'LS8000-115VAC-S-12"', 'LS8000 Base Model'),
+('82', 'LS8000/2-115VAC-H-12"', 'LS8000/2 Base Model'),
+('85', 'LS8500FR-115VAC-S-12"', 'LS8500 Base Model'),
+('9', 'LT9000-115VAC-H-12"', 'LT9000 Base Model'),
+('10', 'FS10000-115VAC-S-12"', 'FS10000 Base Model');
 
 -- Create a view for easy price calculations
 CREATE VIEW price_calculator AS

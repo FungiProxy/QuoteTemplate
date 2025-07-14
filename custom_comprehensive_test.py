@@ -71,7 +71,7 @@ class ComprehensiveTester:
             # Complex configurations with multiple options
             "LS2000-115VAC-S-10\"-XSP-VR-8\"TEFINS-90DEG",
             "LS6000-115VAC-H-24\"-1\"150#RF-12\"PEEKINS-3/4\"OD",
-            "LS7000-24VDC-S-18\"-2\"TC-VRHSE-45DEG",
+            "LS7000-24VDC-S-18\"-2\"TC-VRHOUSING-45DEG",
             
             # Edge case lengths
             "LS2000-115VAC-S-1\"",
@@ -148,7 +148,7 @@ class ComprehensiveTester:
             },
             # Cable probe with special housing
             {
-                'part_number': 'LS2000-115VAC-C-10"-CP-VRHSE',
+                'part_number': 'LS2000-115VAC-C-10"-CP-VRHOUSING',
                 'expected_material': 'Cable',
                 'description': 'Cable probe with epoxy housing'
             },

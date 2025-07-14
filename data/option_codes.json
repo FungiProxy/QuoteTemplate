@@ -36,7 +36,7 @@
     "exclusions": []
   },
 
-  "SSHSE": {
+  "SSHOUSING": {
     "name": "Stainless Steel Housing",
     "description": "Stainless Steel Housing (NEMA 4X)",
     "price": 285.0,
@@ -47,7 +47,7 @@
     ],
     "exclusions": []
   },
-  "VRHSE": {
+  "VRHOUSING": {
     "name": "Epoxy Housing",
     "description": "Epoxy Housing (Chemical Resistant)",
     "price": 150.0,

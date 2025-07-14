@@ -43,7 +43,7 @@ class TestUserDropdown:
     def test_refresh_employee_dropdown(self):
         """Test that the employee dropdown is populated correctly"""
         # Refresh the dropdown
-        self.main_window.refresh_employee_dropdown()
+        self.main_window.populate_user_dropdown()
         
         # Check that employees are loaded
         assert len(self.main_window.employee_list) >= 3  # At least our test employees
@@ -60,7 +60,7 @@ class TestUserDropdown:
     def test_user_selection(self):
         """Test that selecting a user works correctly"""
         # Refresh the dropdown
-        self.main_window.refresh_employee_dropdown()
+        self.main_window.populate_user_dropdown()
         
         # Select the first user
         self.main_window.user_dropdown.current(0)
@@ -74,7 +74,7 @@ class TestUserDropdown:
     def test_get_user_initials(self):
         """Test that user initials are generated correctly"""
         # Refresh the dropdown
-        self.main_window.refresh_employee_dropdown()
+        self.main_window.populate_user_dropdown()
         
         # Select a user
         self.main_window.user_dropdown.current(0)
@@ -96,7 +96,7 @@ class TestUserDropdown:
     def test_employee_manager_integration(self):
         """Test that employee manager integration works"""
         # Refresh the dropdown
-        self.main_window.refresh_employee_dropdown()
+        self.main_window.populate_user_dropdown()
         
         # Simulate selecting an employee from employee manager
         test_employee = {

@@ -38,8 +38,8 @@ class PartNumberParser:
                 'SSTAG': 'Stainless Steel Tag',
                 # 'TEF': 'Teflon Insulator',  # Now handled as insulator via XINS format
                 # 'PEEK': 'PEEK Insulator',   # Now handled as insulator via XINS format
-                'SSHSE': 'Stainless Steel Housing',
-                'VRHSE': 'Epoxy Housing',
+                'SSHOUSING': 'Stainless Steel Housing',
+                'VRHOUSING': 'Epoxy Housing',
                 '3/4"OD': '3/4" Diameter Probe'
             }
         
@@ -211,7 +211,7 @@ class PartNumberParser:
             elif part in ['SS']:  # Stainless Steel housing
                 result['housing_type'] = 'Stainless Steel, NEMA 4X'
                 result['options'].append({
-                    'code': 'SSHSE',
+                    'code': 'SSHOUSING',
                     'name': 'Stainless Steel Housing'
                 })
             

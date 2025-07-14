@@ -36,7 +36,7 @@ class PartNumberValidator:
         # Valid option codes (BP removed - now handled as degree format)
         # TEF and PEEK removed - handled as insulators via XINS format
         self.valid_options = {
-            'XSP', 'VR', 'CP', 'SSTAG', 'SSHSE', 'VRHSE', '3/4"OD'
+            'XSP', 'VR', 'CP', 'SSTAG', 'SSHOUSING', 'VRHOUSING', '3/4"OD'
         }
         
         # Valid insulator codes
@@ -191,7 +191,7 @@ class CompatibilityChecker:
         # Model-specific option restrictions
         self.model_option_restrictions = {
             'XSP': ['LS2000'],  # Extra static protection only for LS2000
-            'SSHSE': ['LS7000'],  # Stainless steel housing only for LS7000
+            'SSHOUSING': ['LS7000'],  # Stainless steel housing only for LS7000
             '3/4"OD': ['ALL'],  # 3/4" diameter probe available for all models
         }
     

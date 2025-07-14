@@ -152,10 +152,11 @@ class MainWindow:
         self.user_dropdown = ttk.Combobox(customer_frame, textvariable=self.user_var, width=20, state="readonly")
         self.user_dropdown.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
         
-        # Initialize employee list and dropdown
-        self.employee_list = []
+        # Store selected employee info for template use
         self.selected_employee_info = None
-        self.refresh_employee_dropdown()
+        
+        # Populate user dropdown
+        self.populate_user_dropdown()
         
         # Bind dropdown selection event
         self.user_dropdown.bind('<<ComboboxSelected>>', self.on_user_selected)
@@ -170,6 +171,8 @@ class MainWindow:
         self.part_number_var = tk.StringVar()
         self.part_number_entry = ttk.Entry(input_frame, textvariable=self.part_number_var, font=("Consolas", 12), width=50)
         self.part_number_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        
+
         
         # Quantity and buttons (row 2)
         ttk.Label(input_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
@@ -197,6 +200,8 @@ class MainWindow:
         self.spare_part_var = tk.StringVar()
         self.spare_part_entry = ttk.Entry(spare_frame, textvariable=self.spare_part_var, font=("Consolas", 12), width=50)
         self.spare_part_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        
+
         
         # Quantity and buttons (row 2)
         ttk.Label(spare_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
@@ -330,17 +335,17 @@ class MainWindow:
         expanded_input = self.process_shortcut_input(current_input)
         if expanded_input != current_input:
             self.part_number_var.set(expanded_input)
+            # Position cursor at the end of the expanded part number
+            self.part_number_entry.icursor(tk.END)
             current_input = expanded_input
         
-        # Check if we have parsed data and if the current input matches the parsed part number
+        # Check if we have parsed data and if the current input matches the parsed part number (case-insensitive)
         if (self.current_quote_data and 
-            current_input == self.current_quote_data.get('part_number')):
+            current_input.upper() == self.current_quote_data.get('part_number', '').upper()):
             # Second Enter - Input matches already parsed data, so add to quote
             self.add_main_part_to_quote()
-            # Clear the field and reset data
-            self.part_number_var.set("")
-            self.current_quote_data = None
-            self.status_var.set("Part added to quote. Enter new part number.")
+            # Keep the part number in the field for easy re-adding
+            self.status_var.set("Part added to quote. Press Enter again to add more, or change quantity.")
         else:
             # First Enter or different part number - Parse and price
             self.parse_part_number()
@@ -1129,80 +1134,65 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open shortcut manager: {str(e)}")
 
-    def refresh_employee_dropdown(self):
-        """Refresh the employee dropdown with current employee list"""
-        try:
-            if self.db_manager.connect():
-                employees = self.db_manager.get_all_employees(active_only=True)
-                self.employee_list = employees
-                
-                # Create display list for dropdown
-                display_list = []
-                for emp in employees:
-                    display_name = f"{emp['first_name']} {emp['last_name']}"
-                    display_list.append(display_name)
-                
-                # Update dropdown values
-                self.user_dropdown['values'] = display_list
-                
-                # Clear current selection
-                self.user_var.set("")
-                self.selected_employee_info = None
-                
-                self.db_manager.disconnect()
-        except Exception as e:
-            print(f"Error refreshing employee dropdown: {e}")
-            self.user_dropdown['values'] = []
-    
-    def on_user_selected(self, event=None):
-        """Handle user selection from dropdown"""
-        selected_index = self.user_dropdown.current()
-        if selected_index >= 0 and selected_index < len(self.employee_list):
-            employee = self.employee_list[selected_index]
-            self.selected_employee_info = employee
-            
-            # Update status
-            self.status_var.set(f"User selected: {employee['first_name']} {employee['last_name']}")
-    
-    def get_user_initials(self) -> str:
-        """Get the initials for the currently selected user"""
-        if self.selected_employee_info:
-            first_name = self.selected_employee_info['first_name']
-            last_name = self.selected_employee_info['last_name']
-            return f"{first_name[0]}{last_name[0]}".upper()
-        return ""
-    
     def show_employee_manager(self):
         """Show the employee manager dialog"""
         try:
             from .employee_manager import EmployeeManagerDialog
-            
-            def on_employee_selected(employee):
-                """Handle employee selection for quote attribution"""
-                # Find the employee in our list and select it in dropdown
-                for i, emp in enumerate(self.employee_list):
-                    if emp['id'] == employee['id']:
-                        self.user_dropdown.current(i)
-                        self.selected_employee_info = employee
-                        self.status_var.set(f"Employee {employee['first_name']} {employee['last_name']} selected")
-                        break
-                else:
-                    # Employee not in current list, refresh and try again
-                    self.refresh_employee_dropdown()
-                    for i, emp in enumerate(self.employee_list):
-                        if emp['id'] == employee['id']:
-                            self.user_dropdown.current(i)
-                            self.selected_employee_info = employee
-                            self.status_var.set(f"Employee {employee['first_name']} {employee['last_name']} selected")
-                            break
-            
-            dialog = EmployeeManagerDialog(self.root, self.db_manager, on_employee_selected)
+            dialog = EmployeeManagerDialog(self.root, self.db_manager)
             dialog.run()
             
-            # Refresh dropdown after employee manager closes
-            self.refresh_employee_dropdown()
+            # Refresh user dropdown after employee changes
+            self.populate_user_dropdown()
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open employee manager: {str(e)}")
+    
+    def populate_user_dropdown(self):
+        """Populate the user dropdown with all employees"""
+        try:
+            if self.db_manager.connect():
+                employees = self.db_manager.get_all_employees()
+                if employees:
+                    # Create display names for dropdown
+                    dropdown_values = []
+                    self.employee_list = employees  # Store for reference
+                    
+                    for employee in employees:
+                        display_name = f"{employee['first_name']} {employee['last_name']}"
+                        dropdown_values.append(display_name)
+                    
+                    self.user_dropdown['values'] = dropdown_values
+                    
+                    # Set default selection if available
+                    if dropdown_values and not self.user_var.get():
+                        self.user_dropdown.current(0)
+                        self.on_user_selected()
+                else:
+                    self.user_dropdown['values'] = ["No employees found"]
+                    self.user_var.set("")
+        except Exception as e:
+            print(f"Error populating user dropdown: {e}")
+            self.user_dropdown['values'] = ["Error loading employees"]
+    
+    def on_user_selected(self, event=None):
+        """Handle user selection from dropdown"""
+        try:
+            selected_index = self.user_dropdown.current()
+            if selected_index >= 0 and selected_index < len(self.employee_list):
+                selected_employee = self.employee_list[selected_index]
+                self.selected_employee_info = selected_employee
+                print(f"Selected employee: {selected_employee['first_name']} {selected_employee['last_name']}")
+        except Exception as e:
+            print(f"Error handling user selection: {e}")
+    
+    def get_user_initials(self) -> str:
+        """Get the initials of the selected user"""
+        if self.selected_employee_info:
+            first_name = self.selected_employee_info.get('first_name', '')
+            last_name = self.selected_employee_info.get('last_name', '')
+            if first_name and last_name:
+                return f"{first_name[0]}{last_name[0]}".upper()
+        return ""
     
     def process_shortcut_input(self, text: str) -> str:
         """
@@ -1258,10 +1248,11 @@ class MainWindow:
                 
                 self.spare_parts_list.append(spare_part_info)
                 
-                # Also add to quote items list
+                # Also add to quote items list with autocapitalized part number
+                autocapitalized_part_number = part_number.upper()
                 quote_item = {
                     'type': 'spare',
-                    'part_number': part_number,
+                    'part_number': autocapitalized_part_number,
                     'customer_name': self.company_var.get().strip(), # Changed from self.customer_var.get()
                     'quantity': quantity,
                     'data': {
@@ -1276,7 +1267,7 @@ class MainWindow:
                 self.quote_items.append(quote_item)
                 
                 # Add to quote tree
-                self.add_to_quote_tree("spare", part_number, result['line_item_description'], 
+                self.add_to_quote_tree("spare", autocapitalized_part_number, result['line_item_description'], 
                                      quantity, result['unit_price'], result['total_price'])
                 
                 # Clear input fields
@@ -1420,10 +1411,11 @@ Length pricing is automatically calculated for probe assemblies.
             # Ensure the raw data reflects the correct quantity
             self.current_quote_data['quantity'] = quantity
 
-            # Create quote item
+            # Create quote item with autocapitalized part number
+            part_number = self.part_number_var.get().strip().upper()
             quote_item = {
                 'type': 'main',
-                'part_number': self.part_number_var.get().strip(),
+                'part_number': part_number,
                 'customer_name': customer_name,
                 'quantity': quantity,
                 'data': self.current_quote_data.copy(),
@@ -1846,6 +1838,8 @@ Length pricing is automatically calculated for probe assemblies.
             if expanded_spare_part != spare_part_number:
                 # Shortcut was expanded, update the input field to show the full part number
                 self.spare_part_var.set(expanded_spare_part)
+                # Position cursor at the end of the expanded part number
+                self.spare_part_entry.icursor(tk.END)
                 self.status_var.set(f"Expanded shortcut '{spare_part_number}' to '{expanded_spare_part}'")
                 self.root.update()
                 spare_part_number = expanded_spare_part

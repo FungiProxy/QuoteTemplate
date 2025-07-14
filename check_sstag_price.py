@@ -22,7 +22,7 @@ else:
     print("❌ SSTAG option not found in database")
 
 # Also check a few other options for comparison
-cursor.execute("SELECT code, name, price FROM options WHERE code IN ('XSP', 'VR', 'SSTAG', 'SSHSE') ORDER BY code")
+cursor.execute("SELECT code, name, price FROM options WHERE code IN ('XSP', 'VR', 'SSTAG', 'SSHOUSING') ORDER BY code")
 results = cursor.fetchall()
 
 print("\nComparison of option prices:")
