@@ -146,19 +146,19 @@ class MainWindow:
         email_entry = ttk.Entry(customer_frame, textvariable=self.email_var)
         email_entry.grid(row=1, column=3, sticky="we", pady=(5, 0))
         
-        # Row 3: Initials for quote numbering
-        ttk.Label(customer_frame, text="Your Initials:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
-        self.initials_var = tk.StringVar(value="")
-        self.initials_entry = ttk.Entry(customer_frame, textvariable=self.initials_var, width=5)
-        self.initials_entry.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+        # Row 3: User dropdown for quote attribution
+        ttk.Label(customer_frame, text="User:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        self.user_var = tk.StringVar(value="")
+        self.user_dropdown = ttk.Combobox(customer_frame, textvariable=self.user_var, width=20, state="readonly")
+        self.user_dropdown.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
         
-        # Add validation for uppercase initials
-        def uppercase_initials(*args):
-            current = self.initials_var.get()
-            if current != current.upper():
-                self.initials_var.set(current.upper())
+        # Initialize employee list and dropdown
+        self.employee_list = []
+        self.selected_employee_info = None
+        self.refresh_employee_dropdown()
         
-        self.initials_var.trace('w', uppercase_initials)
+        # Bind dropdown selection event
+        self.user_dropdown.bind('<<ComboboxSelected>>', self.on_user_selected)
         
         # Part Number Input section
         input_frame = ttk.LabelFrame(main_frame, text="Part Number Input", padding="10")
@@ -392,20 +392,15 @@ class MainWindow:
         
         print("✓ Quote items validation passed")
         
-        # Validate initials are entered
-        user_initials = self.initials_var.get().strip()
+        # Validate user is selected
+        user_initials = self.get_user_initials()
         print(f"User initials retrieved: '{user_initials}'")
         
         if not user_initials:
-            print("❌ No initials entered - showing error")
-            messagebox.showerror("Initials Required", 
-                "You must enter your initials before exporting a quote.\n\n"
+            print("❌ No user selected - showing error")
+            messagebox.showerror("User Required", 
+                "You must select a user before exporting a quote.\n\n"
                 "This is required for quote number generation and tracking.")
-            return
-        
-        if len(user_initials) < 2:
-            print(f"❌ Initials too short: '{user_initials}' - showing error")
-            messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
             return
         
         print(f"✓ Initials validation passed: '{user_initials}'")
@@ -877,7 +872,7 @@ class MainWindow:
                 return
             
             # Get recent quotes for this user or all quotes
-            user_initials = self.initials_var.get().strip()
+            user_initials = self.get_user_initials()
             recent_quotes = self.db_manager.get_recent_quotes(limit=20, user_initials=user_initials)
             
         except Exception as e:
@@ -981,14 +976,11 @@ class MainWindow:
             return
         
         # Validate required fields
-        customer_name = self.company_var.get().strip()
-        if not customer_name:
-            messagebox.showerror("Customer Required", "Please enter a customer name before saving.")
-            return
+        customer_name = self.company_var.get().strip() or "Customer Name"
         
-        user_initials = self.initials_var.get().strip()
+        user_initials = self.get_user_initials()
         if not user_initials:
-            messagebox.showerror("Initials Required", "Please enter your initials before saving.")
+            messagebox.showerror("User Required", "Please select a user before saving.")
             return
         
         # Generate quote number if not already generated
@@ -1137,6 +1129,49 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open shortcut manager: {str(e)}")
 
+    def refresh_employee_dropdown(self):
+        """Refresh the employee dropdown with current employee list"""
+        try:
+            if self.db_manager.connect():
+                employees = self.db_manager.get_all_employees(active_only=True)
+                self.employee_list = employees
+                
+                # Create display list for dropdown
+                display_list = []
+                for emp in employees:
+                    display_name = f"{emp['first_name']} {emp['last_name']}"
+                    display_list.append(display_name)
+                
+                # Update dropdown values
+                self.user_dropdown['values'] = display_list
+                
+                # Clear current selection
+                self.user_var.set("")
+                self.selected_employee_info = None
+                
+                self.db_manager.disconnect()
+        except Exception as e:
+            print(f"Error refreshing employee dropdown: {e}")
+            self.user_dropdown['values'] = []
+    
+    def on_user_selected(self, event=None):
+        """Handle user selection from dropdown"""
+        selected_index = self.user_dropdown.current()
+        if selected_index >= 0 and selected_index < len(self.employee_list):
+            employee = self.employee_list[selected_index]
+            self.selected_employee_info = employee
+            
+            # Update status
+            self.status_var.set(f"User selected: {employee['first_name']} {employee['last_name']}")
+    
+    def get_user_initials(self) -> str:
+        """Get the initials for the currently selected user"""
+        if self.selected_employee_info:
+            first_name = self.selected_employee_info['first_name']
+            last_name = self.selected_employee_info['last_name']
+            return f"{first_name[0]}{last_name[0]}".upper()
+        return ""
+    
     def show_employee_manager(self):
         """Show the employee manager dialog"""
         try:
@@ -1144,18 +1179,28 @@ class MainWindow:
             
             def on_employee_selected(employee):
                 """Handle employee selection for quote attribution"""
-                # Set the initials field with employee initials
-                initials = f"{employee['first_name'][0]}{employee['last_name'][0]}".upper()
-                self.initials_var.set(initials)
-                # Store the selected employee info for template use
-                self.selected_employee_info = employee
-                # Optionally show a message
-                messagebox.showinfo("Employee Selected", 
-                                  f"Employee {employee['first_name']} {employee['last_name']} selected.\n"
-                                  f"Initials set to: {initials}")
+                # Find the employee in our list and select it in dropdown
+                for i, emp in enumerate(self.employee_list):
+                    if emp['id'] == employee['id']:
+                        self.user_dropdown.current(i)
+                        self.selected_employee_info = employee
+                        self.status_var.set(f"Employee {employee['first_name']} {employee['last_name']} selected")
+                        break
+                else:
+                    # Employee not in current list, refresh and try again
+                    self.refresh_employee_dropdown()
+                    for i, emp in enumerate(self.employee_list):
+                        if emp['id'] == employee['id']:
+                            self.user_dropdown.current(i)
+                            self.selected_employee_info = employee
+                            self.status_var.set(f"Employee {employee['first_name']} {employee['last_name']} selected")
+                            break
             
             dialog = EmployeeManagerDialog(self.root, self.db_manager, on_employee_selected)
             dialog.run()
+            
+            # Refresh dropdown after employee manager closes
+            self.refresh_employee_dropdown()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open employee manager: {str(e)}")
     
@@ -1365,10 +1410,7 @@ Length pricing is automatically calculated for probe assemblies.
         
         try:
             # Get customer info
-            customer_name = self.company_var.get().strip() # Changed from self.customer_var.get()
-            if not customer_name:
-                messagebox.showwarning("Customer Required", "Please enter a customer name.")
-                return
+            customer_name = self.company_var.get().strip() or "Customer Name" # Changed from self.customer_var.get()
             
             quantity = int(self.main_qty_var.get() or 1)
             if quantity <= 0:
@@ -1584,16 +1626,12 @@ Length pricing is automatically calculated for probe assemblies.
                 messagebox.showwarning("Empty Quote", "No items to export.")
                 return
             
-            # Validate initials are entered (same logic as main export)
-            user_initials = self.initials_var.get().strip()
+            # Validate user is selected (same logic as main export)
+            user_initials = self.get_user_initials()
             if not user_initials:
-                messagebox.showerror("Initials Required", 
-                    "You must enter your initials before exporting a quote.\n\n"
+                messagebox.showerror("User Required", 
+                    "You must select a user before exporting a quote.\n\n"
                     "This is required for quote number generation and tracking.")
-                return
-            
-            if len(user_initials) < 2:
-                messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
                 return
             
             # Generate quote number if not already generated
@@ -1914,14 +1952,10 @@ Length pricing is automatically calculated for probe assemblies.
     
     def generate_new_quote_number(self) -> bool:
         """Generate a new quote number based on user initials. Returns True if successful."""
-        user_initials = self.initials_var.get().strip()
+        user_initials = self.get_user_initials()
         
         if not user_initials:
-            messagebox.showerror("Initials Required", "Please enter your initials before generating a quote number.")
-            return False
-        
-        if len(user_initials) < 2:
-            messagebox.showerror("Invalid Initials", "Please enter at least 2 characters for your initials.")
+            messagebox.showerror("User Required", "Please select a user before generating a quote number.")
             return False
         
         try:

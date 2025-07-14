@@ -202,10 +202,10 @@ class DatabaseManager:
         
         # Calculate foot thresholds based on model base length
         if model_base_length == 10.0:
-            # For 10" base: thresholds at 11", 24", 36", 48", 60", 72", 84", 96", 108", 120"...
+            # For 10" base: thresholds at 11", 25", 37", 49", 61", 73", 85", 97", 109", 121"...
             thresholds = [11.0]
-            next_threshold = 24.0
-            while next_threshold <= 120.0:  # Reasonable upper limit
+            next_threshold = 25.0
+            while next_threshold <= 121.0:  # Reasonable upper limit
                 thresholds.append(next_threshold)
                 next_threshold += 12.0
         elif model_base_length == 6.0:
@@ -337,7 +337,7 @@ class DatabaseManager:
             'options': option_details
         }
     
-    def calculate_insulator_cost(self, insulator_code: str, material_code: Optional[str] = None) -> float:
+    def calculate_insulator_cost(self, insulator_code: str, material_code: Optional[str] = None, model_code: Optional[str] = None) -> float:
         """Calculate insulator cost with material-specific rules"""
         insulator_info = self.get_insulator_info(insulator_code)
         if not insulator_info:
@@ -349,6 +349,12 @@ class DatabaseManager:
         if (material_code and material_code.upper() == 'H' and 
             insulator_code.upper() == 'TEF'):
             return 0.0
+        
+        # Special rule: If base insulator is Teflon, teflon insulation adder is not applied
+        if (model_code and insulator_code.upper() == 'TEF'):
+            model_info = self.get_model_info(model_code)
+            if model_info and model_info.get('default_insulator', '').upper() == 'TEF':
+                return 0.0
         
         return cost
     
@@ -372,7 +378,7 @@ class DatabaseManager:
         # Insulator pricing
         insulator_cost = 0.0
         if insulator_code:
-            insulator_cost = self.calculate_insulator_cost(insulator_code, material_code)
+            insulator_cost = self.calculate_insulator_cost(insulator_code, material_code, model_code)
         
         # Process connection pricing
         connection_cost = 0.0
