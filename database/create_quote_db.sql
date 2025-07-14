@@ -236,7 +236,7 @@ INSERT INTO options (code, name, description, price, price_type, category, compa
 ('XSP', 'Extra Static Protection', 'Extra Static Protection for plastic pellets/resins', 30.00, 'fixed', 'protection', 'ALL', NULL),
 ('VR', 'Vibration Resistant', 'Vibration Resistant Construction', 50.00, 'fixed', 'protection', 'ALL', NULL),
 -- Bent Probe option removed - now handled as XDEG format in parser
-('SSTAG', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 30.00, 'fixed', 'other', 'ALL', NULL),
+('SSTAG', 'Stainless Steel Tag', 'Stainless Steel Identification Tag', 35.00, 'fixed', 'other', 'ALL', NULL),
 -- TEF and PEEK removed from options - these are handled as insulators via XINS format
 -- ('TEF', 'Teflon Insulator', 'Teflon Insulator (instead of standard)', 40.00, 'fixed', 'insulator', 'ALL', NULL),
 -- ('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
