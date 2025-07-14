@@ -255,7 +255,7 @@ INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, c
 -- POPULATE PROCESS CONNECTIONS
 INSERT INTO process_connections (type, size, material, rating, price, description, compatible_models, notes) VALUES
 -- NPT CONNECTIONS (Standard - No additional cost)
-('NPT', '1/2"', 'SS', NULL, 0.0, '1/2" NPT Process Connection', 'ALL', 'Standard threaded connection'),
+('NPT', '1/2"', 'SS', NULL, 70.0, '1/2" NPT Process Connection', 'ALL', 'Non-standard size - additional cost'),
 ('NPT', '3/4"', 'SS', NULL, 0.0, '3/4" NPT Process Connection', 'ALL', 'Most common size'),
 ('NPT', '1"', 'SS', NULL, 0.0, '1" NPT Process Connection', 'ALL', 'Heavy duty applications'),
 ('NPT', '1-1/2"', 'SS', NULL, 0.0, '1-1/2" NPT Process Connection', 'ALL', 'Large bore connection'),
