@@ -7,6 +7,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Optional, Dict, Any, Callable
 import re
+from gui.dialogs import PhoneEntry
+from utils.helpers import format_phone_number, unformat_phone_number
 
 class EmployeeManagerDialog:
     """Dialog for managing employee information"""
@@ -118,7 +120,7 @@ class EmployeeManagerDialog:
         
         ttk.Label(details_frame, text="Work Phone:").grid(row=3, column=0, sticky="w", pady=2)
         self.phone_var = tk.StringVar()
-        self.phone_entry = ttk.Entry(details_frame, textvariable=self.phone_var)
+        self.phone_entry = PhoneEntry(details_frame, textvariable=self.phone_var)
         self.phone_entry.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=2)
         
         # Active status
@@ -179,10 +181,12 @@ class EmployeeManagerDialog:
             for employee in employees:
                 name = f"{employee['last_name']}, {employee['first_name']}"
                 status = "Active" if employee['is_active'] else "Inactive"
+                # Format phone number for display
+                phone_display = format_phone_number(employee['work_phone']) if employee['work_phone'] else ''
                 
                 self.employee_tree.insert('', 'end', 
                                         values=(name, employee['work_email'], 
-                                               employee['work_phone'] or '', status),
+                                               phone_display, status),
                                         tags=(employee['id'],))
                 
         except Exception as e:
@@ -219,7 +223,11 @@ class EmployeeManagerDialog:
             self.first_name_var.set(employee['first_name'])
             self.last_name_var.set(employee['last_name'])
             self.email_var.set(employee['work_email'])
-            self.phone_var.set(employee['work_phone'] or '')
+            # Format phone number for display
+            if employee['work_phone']:
+                self.phone_entry.set_value(employee['work_phone'])
+            else:
+                self.phone_var.set('')
             self.active_var.set(employee['is_active'])
             
             self.set_form_enabled(True)
@@ -296,7 +304,7 @@ class EmployeeManagerDialog:
             first_name = self.first_name_var.get().strip()
             last_name = self.last_name_var.get().strip()
             email = self.email_var.get().strip()
-            phone = self.phone_var.get().strip() or None
+            phone = self.phone_entry.get_unformatted() or None
             is_active = self.active_var.get()
             
             if self.selected_employee_id:
@@ -369,7 +377,11 @@ class EmployeeManagerDialog:
             self.first_name_var.set(employee['first_name'])
             self.last_name_var.set(employee['last_name'])
             self.email_var.set(employee['work_email'])
-            self.phone_var.set(employee['work_phone'] or '')
+            # Format phone number for display
+            if employee['work_phone']:
+                self.phone_entry.set_value(employee['work_phone'])
+            else:
+                self.phone_var.set('')
             self.active_var.set(employee['is_active'])
             self.set_form_enabled(True)
     

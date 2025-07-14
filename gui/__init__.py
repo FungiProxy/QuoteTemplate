@@ -5,12 +5,11 @@ Provides the graphical user interface components
 
 from .main_window import MainWindow
 from .quote_display import QuoteDisplayWidget
-from .dialogs import AboutDialog, SettingsDialog, ExportDialog
+from .dialogs import SettingsDialog, ExportDialog
 
 __all__ = [
     'MainWindow',
     'QuoteDisplayWidget', 
-    'AboutDialog',
     'SettingsDialog',
     'ExportDialog'
 ] 

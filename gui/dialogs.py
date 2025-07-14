@@ -14,6 +14,75 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import APP_NAME, APP_VERSION, COMPANY_NAME, QUOTE_TEMPLATE_PATH
 from database.db_manager import DatabaseManager
+from utils.helpers import format_phone_number, unformat_phone_number
+
+class PhoneEntry(ttk.Entry):
+    """Entry widget that automatically formats phone numbers as user types"""
+    
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+        
+        # Bind to key release to format as user types
+        self.bind('<KeyRelease>', self._on_key_release)
+        self.bind('<FocusOut>', self._on_focus_out)
+        
+        # Store the last formatted value to prevent infinite loops
+        self._last_formatted = ""
+    
+    def _on_key_release(self, event):
+        """Format phone number as user types"""
+        # Skip formatting for navigation keys
+        if event.keysym in ['BackSpace', 'Delete', 'Left', 'Right', 'Up', 'Down', 'Home', 'End']:
+            return
+        
+        current_value = self.get()
+        
+        # Don't format if it's the same as last formatted value
+        if current_value == self._last_formatted:
+            return
+        
+        # Get cursor position before formatting
+        cursor_pos = self.index(tk.INSERT)
+        
+        # Format the phone number
+        formatted = format_phone_number(current_value)
+        
+        # Only update if formatting changed something
+        if formatted != current_value:
+            self.delete(0, tk.END)
+            self.insert(0, formatted)
+            
+            # Try to maintain cursor position as best as possible
+            # For phone formatting, cursor usually moves forward
+            if len(formatted) > len(current_value):
+                new_cursor_pos = min(cursor_pos + 1, len(formatted))
+            else:
+                new_cursor_pos = min(cursor_pos, len(formatted))
+            
+            self.icursor(new_cursor_pos)
+        
+        self._last_formatted = formatted
+    
+    def _on_focus_out(self, event):
+        """Final formatting when user leaves the field"""
+        current_value = self.get()
+        formatted = format_phone_number(current_value)
+        
+        if formatted != current_value:
+            self.delete(0, tk.END)
+            self.insert(0, formatted)
+            self._last_formatted = formatted
+    
+    def get_unformatted(self) -> str:
+        """Get the phone number without formatting (digits only)"""
+        return unformat_phone_number(self.get())
+    
+    def set_value(self, value: str):
+        """Set the value with proper formatting"""
+        formatted = format_phone_number(value)
+        self.delete(0, tk.END)
+        self.insert(0, formatted)
+        self._last_formatted = formatted
 
 class AboutDialog:
     """About dialog for the application"""
@@ -436,15 +505,16 @@ class SettingsDialog:
         
         ttk.Label(company_frame, text="Company Name:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.company_var = tk.StringVar(value=COMPANY_NAME)
-        ttk.Entry(company_frame, textvariable=self.company_var, width=30).grid(row=0, column=1, sticky=(tk.W, tk.E))
+        ttk.Entry(company_frame, textvariable=self.company_var, width=30).grid(row=0, column=1, sticky="we")
         
         ttk.Label(company_frame, text="Phone:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.phone_var = tk.StringVar(value="(555) 123-4567")
-        ttk.Entry(company_frame, textvariable=self.phone_var, width=30).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.phone_entry = PhoneEntry(company_frame, textvariable=self.phone_var, width=30)
+        self.phone_entry.grid(row=1, column=1, sticky="we", pady=(5, 0))
         
         ttk.Label(company_frame, text="Email:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.email_var = tk.StringVar(value="quotes@company.com")
-        ttk.Entry(company_frame, textvariable=self.email_var, width=30).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=(5, 0))
+        ttk.Entry(company_frame, textvariable=self.email_var, width=30).grid(row=2, column=1, sticky="we", pady=(5, 0))
         
         company_frame.columnconfigure(1, weight=1)
         
@@ -454,11 +524,11 @@ class SettingsDialog:
         
         ttk.Label(defaults_frame, text="Default Customer:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.default_customer_var = tk.StringVar(value="New Customer")
-        ttk.Entry(defaults_frame, textvariable=self.default_customer_var, width=30).grid(row=0, column=1, sticky=(tk.W, tk.E))
+        ttk.Entry(defaults_frame, textvariable=self.default_customer_var, width=30).grid(row=0, column=1, sticky="we")
         
         ttk.Label(defaults_frame, text="Default Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.default_quantity_var = tk.StringVar(value="1")
-        ttk.Entry(defaults_frame, textvariable=self.default_quantity_var, width=30).grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(5, 0))
+        ttk.Entry(defaults_frame, textvariable=self.default_quantity_var, width=30).grid(row=1, column=1, sticky="we", pady=(5, 0))
         
         defaults_frame.columnconfigure(1, weight=1)
     

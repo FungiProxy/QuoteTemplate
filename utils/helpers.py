@@ -423,3 +423,46 @@ def flatten_dict(d: dict, parent_key: str = '', sep: str = '.') -> dict:
         else:
             items.append((new_key, v))
     return dict(items) 
+
+def format_phone_number(phone: str) -> str:
+    """
+    Format phone number to (xxx) xxx-xxxx format
+    
+    Args:
+        phone: Phone number string (can be digits only or already formatted)
+    
+    Returns:
+        Formatted phone number string
+    """
+    if not phone:
+        return ""
+    
+    # Remove all non-digit characters
+    digits_only = re.sub(r'\D', '', phone)
+    
+    # If we have exactly 10 digits, format as (xxx) xxx-xxxx
+    if len(digits_only) == 10:
+        return f"({digits_only[:3]}) {digits_only[3:6]}-{digits_only[6:]}"
+    
+    # If we have 11 digits starting with 1, format as 1 (xxx) xxx-xxxx
+    elif len(digits_only) == 11 and digits_only.startswith('1'):
+        return f"1 ({digits_only[1:4]}) {digits_only[4:7]}-{digits_only[7:]}"
+    
+    # For other lengths, return the original input
+    return phone
+
+def unformat_phone_number(phone: str) -> str:
+    """
+    Remove formatting from phone number to get digits only
+    
+    Args:
+        phone: Formatted phone number string
+    
+    Returns:
+        Digits only phone number string
+    """
+    if not phone:
+        return ""
+    
+    # Remove all non-digit characters
+    return re.sub(r'\D', '', phone) 

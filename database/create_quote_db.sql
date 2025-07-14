@@ -183,12 +183,14 @@ CREATE TABLE part_section_aliases (
 );
 
 -- 13. EMPLOYEES - Employee information for quote attribution
+-- NOTE: work_phone field stores digits only (e.g., '1234567890')
+-- The application automatically formats them for display as (123) 456-7890
 CREATE TABLE employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     work_email TEXT NOT NULL UNIQUE,
-    work_phone TEXT,
+    work_phone TEXT, -- Store as digits only, formatted by application
     is_active BOOLEAN DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -488,6 +490,11 @@ INSERT INTO part_section_aliases (section_type, alias, standard_code, descriptio
 ('option', '3/4"ROD', '3/4"OD', '3/4" Diameter Probe - ROD alias'),
 ('option', 'HSE', 'SSHOUSING', 'Stainless Steel Housing - HSE alias'),
 ('option', 'VRHSE', 'VRHOUSING', 'Epoxy Housing - VRHSE alias');
+
+-- POPULATE DEFAULT EMPLOYEES
+INSERT INTO employees (first_name, last_name, work_email, work_phone, is_active) VALUES
+('Zoe', 'Fleming', 'Zoe@babbittt.us', '(713) 467-4438', 1),
+('John', 'Nicholosi', 'John@babbitt.us', '(713) 467-4438', 1);
 
 -- Re-enable foreign key constraints
 PRAGMA foreign_keys = ON; 

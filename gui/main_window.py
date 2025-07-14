@@ -4,7 +4,7 @@ Provides the primary user interface for the application
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, simpledialog
 from typing import Optional, Dict, Any, Union
 import sys
 import os
@@ -22,7 +22,7 @@ from core.part_parser import PartNumberParser
 from core.quote_generator import QuoteGenerator
 from core.spare_parts_manager import SparePartsManager
 
-from .dialogs import AboutDialog, SettingsDialog, ExportDialog, ShortcutManagerDialog
+from .dialogs import SettingsDialog, ExportDialog, ShortcutManagerDialog
 from .autocomplete import AutocompleteEntry
 
 class MainWindow:
@@ -45,6 +45,7 @@ class MainWindow:
         self.current_quote_number = None  # Track current quote number
         self.current_quote_data = None  # Track current parsed quote data
         self.selected_employee_info = None  # Store selected employee for template use
+        self.selected_customer = None  # Store selected customer for quote generation
         
         # Track pending quote numbers for this session (not yet saved to database)
         self.pending_quote_numbers = set()
@@ -109,6 +110,7 @@ class MainWindow:
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Tools", menu=tools_menu)
+        tools_menu.add_command(label="Customer Management", command=self.show_customer_manager)
         tools_menu.add_command(label="Employee Management", command=self.show_employee_manager)
         tools_menu.add_separator()
         tools_menu.add_command(label="Validate Database", command=self.validate_database)
@@ -118,7 +120,6 @@ class MainWindow:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="User Guide", command=self.show_help)
-        help_menu.add_command(label="About", command=self.show_about)
     
     def create_widgets(self):
         """Create main UI widgets"""
@@ -158,27 +159,39 @@ class MainWindow:
         customer_frame.columnconfigure(1, weight=1)
         customer_frame.columnconfigure(3, weight=1)
         
-        # Row 1: Company and Contact Person
-        ttk.Label(customer_frame, text="Company:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        # Row 1: Customer Selection
+        ttk.Label(customer_frame, text="Customer:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.customer_var = tk.StringVar(value="")
+        self.customer_entry = ttk.Entry(customer_frame, textvariable=self.customer_var, state="readonly")
+        self.customer_entry.grid(row=0, column=1, sticky="we", padx=(0, 20))
+        
+        self.select_customer_button = ttk.Button(customer_frame, text="Select Customer", command=self.show_customer_selection)
+        self.select_customer_button.grid(row=0, column=2, padx=(0, 10))
+        
+        self.clear_customer_button = ttk.Button(customer_frame, text="Clear", command=self.clear_customer_info)
+        self.clear_customer_button.grid(row=0, column=3, sticky="w")
+        
+        # Row 2: Company and Contact Person (read-only display)
+        ttk.Label(customer_frame, text="Company:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.company_var = tk.StringVar(value="")
-        company_entry = ttk.Entry(customer_frame, textvariable=self.company_var)
-        company_entry.grid(row=0, column=1, sticky="we", padx=(0, 20))
+        company_entry = ttk.Entry(customer_frame, textvariable=self.company_var, state="readonly")
+        company_entry.grid(row=1, column=1, sticky="we", padx=(0, 20), pady=(5, 0))
         
-        ttk.Label(customer_frame, text="Contact Person:").grid(row=0, column=2, sticky=tk.W, padx=(0, 10))
+        ttk.Label(customer_frame, text="Contact Person:").grid(row=1, column=2, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.contact_person_var = tk.StringVar(value="")
-        contact_entry = ttk.Entry(customer_frame, textvariable=self.contact_person_var)
-        contact_entry.grid(row=0, column=3, sticky="we")
+        contact_entry = ttk.Entry(customer_frame, textvariable=self.contact_person_var, state="readonly")
+        contact_entry.grid(row=1, column=3, sticky="we", pady=(5, 0))
         
-        # Row 2: Phone and Email
-        ttk.Label(customer_frame, text="Phone:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        # Row 3: Phone and Email (read-only display)
+        ttk.Label(customer_frame, text="Phone:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.phone_var = tk.StringVar(value="")
-        phone_entry = ttk.Entry(customer_frame, textvariable=self.phone_var)
-        phone_entry.grid(row=1, column=1, sticky="we", padx=(0, 20), pady=(5, 0))
+        phone_entry = ttk.Entry(customer_frame, textvariable=self.phone_var, state="readonly")
+        phone_entry.grid(row=2, column=1, sticky="we", padx=(0, 20), pady=(5, 0))
         
-        ttk.Label(customer_frame, text="Email:").grid(row=1, column=2, sticky=tk.W, padx=(0, 10), pady=(5, 0))
+        ttk.Label(customer_frame, text="Email:").grid(row=2, column=2, sticky=tk.W, padx=(0, 10), pady=(5, 0))
         self.email_var = tk.StringVar(value="")
-        email_entry = ttk.Entry(customer_frame, textvariable=self.email_var)
-        email_entry.grid(row=1, column=3, sticky="we", pady=(5, 0))
+        email_entry = ttk.Entry(customer_frame, textvariable=self.email_var, state="readonly")
+        email_entry.grid(row=2, column=3, sticky="we", pady=(5, 0))
         
         # Part Number Input section (moved down by 1)
         input_frame = ttk.LabelFrame(main_frame, text="Part Number Input", padding="10")
@@ -212,7 +225,7 @@ class MainWindow:
         self.parse_button = tk.Button(input_frame, text="🔍 PARSE & PRICE", 
                                      command=self.parse_part_number,
                                      font=("Arial", 10, "bold"),
-                                     bg="#2E7D32", fg="white",
+                                     bg="#1565C0", fg="white",
                                      relief=tk.RAISED, bd=2,
                                      padx=10, pady=3)
         self.parse_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
@@ -286,16 +299,16 @@ class MainWindow:
         self.quote_tree.configure(yscrollcommand=quote_scrollbar.set)
         
         # Add right-click context menu to main quote tree
-        def show_main_tree_details(event):
-            """Show detailed information for selected item in main tree"""
+        def show_main_tree_context_menu(event):
+            """Show context menu for selected item in main tree"""
             item_id = self.quote_tree.identify_row(event.y)
             if item_id:
                 item_index = self.quote_tree.index(item_id)
                 if 0 <= item_index < len(self.quote_items):
                     selected_item = self.quote_items[item_index]
-                    self.show_part_details_popup(selected_item, self.root)
+                    self.show_quote_item_context_menu(event, selected_item, item_index)
         
-        self.quote_tree.bind("<Button-3>", show_main_tree_details)  # Right-click
+        self.quote_tree.bind("<Button-3>", show_main_tree_context_menu)  # Right-click
         
         self.quote_tree.grid(row=0, column=0, sticky="wens")
         quote_scrollbar.grid(row=0, column=1, sticky="ns")
@@ -308,7 +321,7 @@ class MainWindow:
         self.export_button = tk.Button(quote_buttons_frame, text="📄 EXPORT QUOTE", 
                                       command=self.export_quote,
                                       font=("Arial", 10, "bold"),
-                                      bg="#E65100", fg="white",
+                                      bg="#1565C0", fg="white",
                                       relief=tk.RAISED, bd=2,
                                       padx=10, pady=3)
         self.export_button.grid(row=0, column=0, padx=(0, 10))
@@ -355,10 +368,10 @@ class MainWindow:
         """Setup hover effects for prominent buttons with darker theme"""
         # Parse button hover effects
         def on_parse_enter(e):
-            self.parse_button.config(bg="#1B5E20", relief=tk.SUNKEN)
+            self.parse_button.config(bg="#0D47A1", relief=tk.SUNKEN)
         
         def on_parse_leave(e):
-            self.parse_button.config(bg="#2E7D32", relief=tk.RAISED)
+            self.parse_button.config(bg="#1565C0", relief=tk.RAISED)
         
         self.parse_button.bind('<Enter>', on_parse_enter)
         self.parse_button.bind('<Leave>', on_parse_leave)
@@ -375,10 +388,10 @@ class MainWindow:
         
         # Export button hover effects
         def on_export_enter(e):
-            self.export_button.config(bg="#BF360C", relief=tk.SUNKEN)
+            self.export_button.config(bg="#0D47A1", relief=tk.SUNKEN)
         
         def on_export_leave(e):
-            self.export_button.config(bg="#E65100", relief=tk.RAISED)
+            self.export_button.config(bg="#1565C0", relief=tk.RAISED)
         
         self.export_button.bind('<Enter>', on_export_enter)
         self.export_button.bind('<Leave>', on_export_leave)
@@ -391,7 +404,7 @@ class MainWindow:
     def on_parse_click(self, event):
         """Provide visual feedback when Parse button is clicked"""
         original_bg = self.parse_button.cget('bg')
-        self.parse_button.config(bg="#1B5E20")  # Darkest green
+        self.parse_button.config(bg="#0D47A1")  # Darkest blue
         self.root.after(150, lambda: self.parse_button.config(bg=original_bg))
     
     def on_add_to_quote_click(self, event):
@@ -403,7 +416,7 @@ class MainWindow:
     def on_export_click(self, event):
         """Provide visual feedback when Export button is clicked"""
         original_bg = self.export_button.cget('bg')
-        self.export_button.config(bg="#BF360C")  # Darkest orange
+        self.export_button.config(bg="#0D47A1")  # Darkest blue
         self.root.after(150, lambda: self.export_button.config(bg=original_bg))
     
     def highlight_key_buttons(self):
@@ -414,9 +427,9 @@ class MainWindow:
         export_original = self.export_button.cget('bg')
         
         # Flash buttons with slightly lighter colors from the darker theme
-        self.parse_button.config(bg="#388E3C")  # Lighter dark green
+        self.parse_button.config(bg="#1976D2")  # Lighter dark blue
         self.add_to_quote_button.config(bg="#1976D2")  # Lighter dark blue
-        self.export_button.config(bg="#F57C00")  # Lighter dark orange
+        self.export_button.config(bg="#1976D2")  # Lighter dark blue
         
         # Restore original colors after 2 seconds
         self.root.after(2000, lambda: [
@@ -1035,7 +1048,7 @@ class MainWindow:
             self.pending_quote_numbers.remove(self.current_quote_number)
         
         self.part_number_var.set("")
-        self.company_var.set("New Customer") # Changed from self.customer_var.set("New Customer")
+        self.clear_customer_info()  # Clear customer information
         self.main_qty_var.set("1")
         self.current_quote_data = None
         self.current_quote_number = None
@@ -1305,7 +1318,7 @@ class MainWindow:
         """Show help/user guide"""
         try:
             import webbrowser
-            help_path = os.path.join(os.path.dirname(__file__), '..', 'USER_GUIDE.md')
+            help_path = os.path.join(os.path.dirname(__file__), '..', 'docs', 'user_guide.html')
             if os.path.exists(help_path):
                 webbrowser.open(f"file://{os.path.abspath(help_path)}")
             else:
@@ -1313,9 +1326,7 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Could not open help:\n{str(e)}")
     
-    def show_about(self):
-        """Show about dialog"""
-        dialog = AboutDialog(self.root)
+
     
     def show_shortcut_manager(self):
         """Show the shortcut manager dialog"""
@@ -1324,6 +1335,50 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open shortcut manager: {str(e)}")
 
+    def show_customer_manager(self):
+        """Show the customer manager dialog"""
+        try:
+            from .customer_manager import CustomerManagerDialog
+            dialog = CustomerManagerDialog(self.root)
+            dialog.run()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open customer manager: {str(e)}")
+    
+    def show_customer_selection(self):
+        """Show the customer selection dialog"""
+        try:
+            from .customer_selection import CustomerSelectionDialog
+            dialog = CustomerSelectionDialog(self.root, self.on_customer_selected)
+            dialog.run()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open customer selection: {str(e)}")
+    
+    def on_customer_selected(self, customer):
+        """Handle customer selection from dialog"""
+        if customer:
+            self.selected_customer = customer
+            self.customer_var.set(customer['customer_name'])
+            self.company_var.set(customer['customer_name'])  # Use customer name as company name
+            
+            # Set contact information directly from customer record
+            self.contact_person_var.set(customer['contact_name'] or '')
+            # Format phone number for display
+            if customer['phone']:
+                from utils.helpers import format_phone_number
+                self.phone_var.set(format_phone_number(customer['phone']))
+            else:
+                self.phone_var.set('')
+            self.email_var.set(customer['email'] or '')
+    
+    def clear_customer_info(self):
+        """Clear all customer information"""
+        self.selected_customer = None
+        self.customer_var.set('')
+        self.company_var.set('')
+        self.contact_person_var.set('')
+        self.phone_var.set('')
+        self.email_var.set('')
+    
     def show_employee_manager(self):
         """Show the employee manager dialog"""
         try:
@@ -1613,27 +1668,47 @@ Length pricing is automatically calculated for probe assemblies.
 
             # Create quote item with expanded part number
             part_number = self.current_quote_data.get('part_number', self.part_number_var.get().strip().upper())
-            quote_item = {
-                'type': 'main',
-                'part_number': part_number,
-                'customer_name': customer_name,
-                'quantity': quantity,
-                'data': self.current_quote_data.copy(),
-                'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
             
-            # Add to quote items list
-            self.quote_items.append(quote_item)
+            # Check if this part number already exists in the quote
+            existing_item_index = None
+            for i, item in enumerate(self.quote_items):
+                if item.get('part_number') == part_number and item.get('type') == 'main':
+                    existing_item_index = i
+                    break
             
-            # Add to quote tree display
-            description = f"{self.current_quote_data.get('model', 'N/A')} - {self.current_quote_data.get('voltage', 'N/A')}"
-            unit_price = self.current_quote_data.get('total_price', 0)
-            total_price = unit_price * quantity
-            
-            self.add_to_quote_tree("main", quote_item['part_number'], description, 
-                                 quantity, unit_price, total_price)
-            
-            self.status_var.set(f"Added to quote: {quote_item['part_number']} (Qty: {quantity}) - Total items: {len(self.quote_items)}")
+            if existing_item_index is not None:
+                # Update existing item quantity
+                existing_item = self.quote_items[existing_item_index]
+                new_quantity = existing_item.get('quantity', 1) + quantity
+                existing_item['quantity'] = new_quantity
+                
+                # Update the tree display
+                self._refresh_quote_tree()
+                
+                self.status_var.set(f"Updated quantity for {part_number} to {new_quantity} - Total items: {len(self.quote_items)}")
+            else:
+                # Create new quote item
+                quote_item = {
+                    'type': 'main',
+                    'part_number': part_number,
+                    'customer_name': customer_name,
+                    'quantity': quantity,
+                    'data': self.current_quote_data.copy(),
+                    'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                # Add to quote items list
+                self.quote_items.append(quote_item)
+                
+                # Add to quote tree display
+                description = f"{self.current_quote_data.get('model', 'N/A')} - {self.current_quote_data.get('voltage', 'N/A')}"
+                unit_price = self.current_quote_data.get('total_price', 0)
+                total_price = unit_price * quantity
+                
+                self.add_to_quote_tree("main", quote_item['part_number'], description, 
+                                     quantity, unit_price, total_price)
+                
+                self.status_var.set(f"Added to quote: {quote_item['part_number']} (Qty: {quantity}) - Total items: {len(self.quote_items)}")
             
         except ValueError:
             messagebox.showerror("Invalid Input", "Please enter a valid quantity (number).")
@@ -1728,16 +1803,16 @@ Length pricing is automatically calculated for probe assemblies.
         summary_tree.configure(yscrollcommand=summary_scrollbar.set)
         
         # Add right-click context menu
-        def show_item_details(event):
-            """Show detailed information for selected item"""
+        def show_item_context_menu(event):
+            """Show context menu for selected item"""
             item_id = summary_tree.identify_row(event.y)
             if item_id:
                 item_index = summary_tree.index(item_id)
                 if 0 <= item_index < len(self.quote_items):
                     selected_item = self.quote_items[item_index]
-                    self.show_part_details_popup(selected_item, quote_window)
+                    self.show_quote_item_context_menu(event, selected_item, item_index)
         
-        summary_tree.bind("<Button-3>", show_item_details)  # Right-click
+        summary_tree.bind("<Button-3>", show_item_context_menu)  # Right-click
         
         summary_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         summary_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -2108,13 +2183,43 @@ Length pricing is automatically calculated for probe assemblies.
         
         # Get selected item
         item_id = selection[0]
-        item_values = self.quote_tree.item(item_id, 'values')
+        item_index = self.quote_tree.index(item_id)
         
-        if not item_values:
+        if item_index < 0 or item_index >= len(self.quote_items):
+            messagebox.showerror("Error", "Invalid item selection.")
             return
         
-        # For now, just show a message - detailed editing can be implemented later
-        messagebox.showinfo("Edit Item", f"Editing functionality for {item_values[1]} will be implemented in a future version.")
+        # Get the item to be edited
+        item_to_edit = self.quote_items[item_index]
+        part_number = item_to_edit.get('part_number', 'Unknown')
+        current_quantity = item_to_edit.get('quantity', 1)
+        
+        # Ask for new quantity
+        try:
+            new_quantity = simpledialog.askinteger(
+                "Edit Quantity", 
+                f"Enter new quantity for {part_number}:",
+                minvalue=1,
+                initialvalue=current_quantity
+            )
+            
+            if new_quantity is None:  # User cancelled
+                return
+            
+            if new_quantity <= 0:
+                messagebox.showwarning("Invalid Quantity", "Quantity must be greater than 0.")
+                return
+            
+            # Update the quantity
+            item_to_edit['quantity'] = new_quantity
+            
+            # Refresh the tree display
+            self._refresh_quote_tree()
+            
+            self.status_var.set(f"Updated quantity for {part_number} to {new_quantity}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to edit item: {str(e)}")
     
     def remove_quote_item(self):
         """Remove selected quote item"""
@@ -2125,19 +2230,23 @@ Length pricing is automatically calculated for probe assemblies.
         
         # Get selected item
         item_id = selection[0]
-        item_values = self.quote_tree.item(item_id, 'values')
+        item_index = self.quote_tree.index(item_id)
         
-        if not item_values:
+        if item_index < 0 or item_index >= len(self.quote_items):
+            messagebox.showerror("Error", "Invalid item selection.")
             return
         
+        # Get the item to be removed
+        item_to_remove = self.quote_items[item_index]
+        part_number = item_to_remove.get('part_number', 'Unknown')
+        
         # Confirm removal
-        if messagebox.askyesno("Remove Item", f"Remove {item_values[1]} from quote?"):
+        if messagebox.askyesno("Remove Item", f"Remove {part_number} from quote?"):
             # Remove from treeview
             self.quote_tree.delete(item_id)
             
-            # Remove from quote_items list (find by part number)
-            part_number = item_values[1]
-            self.quote_items = [item for item in self.quote_items if item.get('part_number') != part_number]
+            # Remove from quote_items list by index
+            self.quote_items.pop(item_index)
             
             # Update total
             self.update_quote_total()
@@ -2289,6 +2398,36 @@ Length pricing is automatically calculated for probe assemblies.
         # Update total
         self.update_quote_total()
 
+    def _refresh_quote_tree(self):
+        """Refresh the entire quote tree display with current quote items"""
+        # Clear the tree
+        for item in self.quote_tree.get_children():
+            self.quote_tree.delete(item)
+        
+        # Re-add all items
+        for item in self.quote_items:
+            if item['type'] == 'main':
+                description = f"{item['data'].get('model', 'N/A')} - {item['data'].get('voltage', 'N/A')}"
+                unit_price = item['data'].get('total_price', 0)
+            else:  # spare part
+                description = item['data'].get('description', 'Spare Part')
+                unit_price = item['data'].get('pricing', {}).get('total_price', 0)
+            
+            quantity = item.get('quantity', 1)
+            total_price = unit_price * quantity
+            
+            self.quote_tree.insert("", "end", values=(
+                item['type'].upper(),
+                item['part_number'],
+                description,
+                quantity,
+                f"${unit_price:.2f}",
+                f"${total_price:.2f}"
+            ))
+        
+        # Update total
+        self.update_quote_total()
+    
     def show_part_details_popup(self, quote_item: Dict[str, Any], parent_window: Union[tk.Tk, tk.Toplevel]):
         """Show detailed part information in a popup window"""
         # Create details popup window
@@ -2332,14 +2471,46 @@ Length pricing is automatically calculated for probe assemblies.
         notebook.add(pricing_frame, text="Pricing Breakdown")
         self._create_pricing_breakdown_tab(pricing_frame, quote_item)
         
-        # Raw Data Tab
-        raw_data_frame = ttk.Frame(notebook)
-        notebook.add(raw_data_frame, text="Raw Data")
-        self._create_raw_data_tab(raw_data_frame, quote_item)
+        # Raw Data Tab - REMOVED as requested
         
         # Close button
         close_button = ttk.Button(main_frame, text="Close", command=details_window.destroy)
         close_button.pack(pady=(10, 0))
+    
+    def show_quote_item_context_menu(self, event, quote_item: Dict[str, Any], item_index: int):
+        """Show context menu for quote item with View Details and Remove options"""
+        # Create context menu
+        context_menu = tk.Menu(self.root, tearoff=0)
+        context_menu.add_command(label="View Item Details", 
+                                command=lambda: self.show_part_details_popup(quote_item, self.root))
+        context_menu.add_separator()
+        context_menu.add_command(label="Remove Item from Quote", 
+                                command=lambda: self.remove_quote_item_by_index(item_index))
+        
+        # Show the menu at the cursor position
+        try:
+            context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            context_menu.grab_release()
+    
+    def remove_quote_item_by_index(self, item_index: int):
+        """Remove quote item by index"""
+        if 0 <= item_index < len(self.quote_items):
+            item_to_remove = self.quote_items[item_index]
+            part_number = item_to_remove.get('part_number', 'Unknown')
+            
+            # Confirm removal
+            if messagebox.askyesno("Remove Item", f"Remove {part_number} from quote?"):
+                # Remove from quote_items list
+                self.quote_items.pop(item_index)
+                
+                # Refresh the tree display
+                self._refresh_quote_tree()
+                
+                # Update total
+                self.update_quote_total()
+                
+                self.status_var.set(f"Removed {part_number} from quote")
     
     def _create_basic_info_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
         """Create basic information tab"""
@@ -2525,27 +2696,9 @@ Length pricing is automatically calculated for probe assemblies.
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
     
-    def _create_raw_data_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
-        """Create raw data tab showing all parsed data"""
-        # Create text widget with scrollbar
-        text_frame = ttk.Frame(parent)
-        text_frame.pack(fill=tk.BOTH, expand=True)
-        
-        text_widget = tk.Text(text_frame, wrap=tk.WORD, font=("Consolas", 9))
-        text_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
-        text_widget.configure(yscrollcommand=text_scrollbar.set)
-        
-        # Add raw data
-        import json
-        raw_data_text = "QUOTE ITEM RAW DATA\n"
-        raw_data_text += "=" * 50 + "\n\n"
-        raw_data_text += json.dumps(quote_item, indent=2, default=str)
-        
-        text_widget.insert(tk.END, raw_data_text)
-        text_widget.config(state=tk.DISABLED)
-        
-        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+
+
 
 if __name__ == "__main__":
     app = MainWindow()
