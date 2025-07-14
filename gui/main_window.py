@@ -126,11 +126,31 @@ class MainWindow:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(3, weight=1)  # Quote summary area will be expandable
+        main_frame.rowconfigure(4, weight=1)  # Quote summary area will be expandable (moved down by 1)
         
-        # Customer Information section (TOP)
+        # User Selection section (TOP - NEW)
+        user_frame = ttk.LabelFrame(main_frame, text="User Selection", padding="10")
+        user_frame.grid(row=0, column=0, sticky="we", pady=(0, 10))
+        user_frame.columnconfigure(1, weight=1)
+        
+        # User dropdown for quote attribution
+        ttk.Label(user_frame, text="User:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.user_var = tk.StringVar(value="")
+        self.user_dropdown = ttk.Combobox(user_frame, textvariable=self.user_var, width=20, state="readonly")
+        self.user_dropdown.grid(row=0, column=1, sticky=tk.W)
+        
+        # Store selected employee info for template use
+        self.selected_employee_info = None
+        
+        # Populate user dropdown
+        self.populate_user_dropdown()
+        
+        # Bind dropdown selection event
+        self.user_dropdown.bind('<<ComboboxSelected>>', self.on_user_selected)
+        
+        # Customer Information section (moved down by 1)
         customer_frame = ttk.LabelFrame(main_frame, text="Customer Information", padding="10")
-        customer_frame.grid(row=0, column=0, sticky="we", pady=(0, 10))
+        customer_frame.grid(row=1, column=0, sticky="we", pady=(0, 10))
         customer_frame.columnconfigure(1, weight=1)
         customer_frame.columnconfigure(3, weight=1)
         
@@ -156,24 +176,9 @@ class MainWindow:
         email_entry = ttk.Entry(customer_frame, textvariable=self.email_var)
         email_entry.grid(row=1, column=3, sticky="we", pady=(5, 0))
         
-        # Row 3: User dropdown for quote attribution
-        ttk.Label(customer_frame, text="User:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
-        self.user_var = tk.StringVar(value="")
-        self.user_dropdown = ttk.Combobox(customer_frame, textvariable=self.user_var, width=20, state="readonly")
-        self.user_dropdown.grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
-        
-        # Store selected employee info for template use
-        self.selected_employee_info = None
-        
-        # Populate user dropdown
-        self.populate_user_dropdown()
-        
-        # Bind dropdown selection event
-        self.user_dropdown.bind('<<ComboboxSelected>>', self.on_user_selected)
-        
-        # Part Number Input section
+        # Part Number Input section (moved down by 1)
         input_frame = ttk.LabelFrame(main_frame, text="Part Number Input", padding="10")
-        input_frame.grid(row=1, column=0, sticky="we", pady=(0, 10))
+        input_frame.grid(row=2, column=0, sticky="we", pady=(0, 10))
         input_frame.columnconfigure(1, weight=1)
         
         # Part number entry (row 1)
@@ -200,9 +205,9 @@ class MainWindow:
         self.shortcuts_button = ttk.Button(input_frame, text="Custom Shortcuts", command=self.show_shortcut_manager)
         self.shortcuts_button.grid(row=1, column=4, pady=(10, 0))
         
-        # Spare Parts section (same layout as part number section)
+        # Spare Parts section (moved down by 1)
         spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
-        spare_frame.grid(row=2, column=0, sticky="we", pady=(0, 10))
+        spare_frame.grid(row=3, column=0, sticky="we", pady=(0, 10))
         spare_frame.columnconfigure(1, weight=1)
         
         # Spare parts entry (row 1)
@@ -231,9 +236,9 @@ class MainWindow:
         
 
         
-        # Quote Summary section (NEW)
+        # Quote Summary section (moved down by 1)
         quote_summary_frame = ttk.LabelFrame(main_frame, text="Quote Summary", padding="10")
-        quote_summary_frame.grid(row=3, column=0, sticky="wens", pady=(0, 10))
+        quote_summary_frame.grid(row=4, column=0, sticky="wens", pady=(0, 10))
         quote_summary_frame.columnconfigure(0, weight=1)
         quote_summary_frame.rowconfigure(0, weight=1)
         
@@ -299,10 +304,10 @@ class MainWindow:
         self.quote_number_label = ttk.Label(quote_buttons_frame, text="Quote #: Not Generated", font=("Arial", 10))
         self.quote_number_label.grid(row=0, column=5, padx=(20, 0))
         
-        # Status bar
+        # Status bar (moved down by 1)
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=4, column=0, sticky="we", pady=(10, 0))
+        status_bar.grid(row=5, column=0, sticky="we", pady=(10, 0))
         
         # Store references to main widgets
         self.main_frame = main_frame
@@ -310,6 +315,7 @@ class MainWindow:
         self.customer_frame = customer_frame
         self.spare_frame = spare_frame
         self.quote_summary_frame = quote_summary_frame
+        self.user_frame = user_frame
     
     def setup_layout(self):
         """Configure layout and grid weights"""
@@ -443,113 +449,149 @@ class MainWindow:
             if filename:
                 print(f"Export filename selected: {filename}")
                 
-                # Try to use Word template system for the first main item
+                # Try to use Word template system for multi-item or single item export
                 success = False
                 main_items = [item for item in self.quote_items if item.get('type') == 'main']
                 
                 if main_items:
-                    # Use the first main item for template export
-                    main_item = main_items[0]
-                    part_number = main_item.get('part_number', '')
-                    print(f"Using main item for template: {part_number}")
+                    # Get customer information
+                    customer_name = self.company_var.get() or "Customer Name"
+                    contact_name = self.contact_person_var.get() or "Contact Person"
                     
-                    # Extract data properly from the quote item
-                    quote_data = main_item.get('data', {})
-                    print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+                    # Get employee information for template
+                    employee_name = ""
+                    employee_phone = ""
+                    employee_email = ""
+                    if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                        emp = self.selected_employee_info
+                        employee_name = f"{emp['first_name']} {emp['last_name']}"
+                        employee_phone = emp.get('work_phone', '')
+                        employee_email = emp.get('work_email', '')
+                        print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
+                    else:
+                        print("⚠ No employee selected, using default contact info")
                     
-                    # Set current_quote_data temporarily for the export
-                    original_quote_data = self.current_quote_data
-                    self.current_quote_data = quote_data
+                    # Use the generated quote number (guaranteed to exist at this point)
+                    assert self.current_quote_number is not None
+                    quote_number = self.current_quote_number
                     
-                    # Try Word template export first
-                    try:
-                        from export.word_template_processor import generate_word_quote
+                    # Determine if this is a multi-item quote
+                    is_multi_item = len(self.quote_items) > 1
+                    
+                    if is_multi_item:
+                        print(f"🚀 Multi-item quote export with {len(self.quote_items)} items")
                         
-                        # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-                        model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-                        print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                        # Try multi-item Word template export using composed approach
+                        try:
+                            from export.word_template_processor import generate_composed_multi_item_quote
+                            
+                            # Prepare employee info
+                            employee_info = {
+                                'name': employee_name,
+                                'phone': employee_phone,
+                                'email': employee_email
+                            }
+                            
+                            success = generate_composed_multi_item_quote(
+                                quote_items=self.quote_items,
+                                customer_name=customer_name,
+                                attention_name=contact_name,
+                                quote_number=quote_number,
+                                output_path=filename,
+                                employee_info=employee_info
+                            )
+                            print(f"✅ Composed multi-item Word template export success: {success}")
+                            
+                        except Exception as e:
+                            print(f"❌ Composed multi-item Word template export failed: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            success = False
+                    
+                    else:
+                        print(f"🚀 Single item quote export")
                         
-                        # Get customer information
-                        customer_name = self.company_var.get() or "Customer Name"
-                        contact_name = self.contact_person_var.get() or "Contact Person"
+                        # Use the first main item for single-item template export
+                        main_item = main_items[0]
+                        part_number = main_item.get('part_number', '')
+                        print(f"Using main item for template: {part_number}")
                         
-                        # Get employee information for template
-                        employee_name = ""
-                        employee_phone = ""
-                        employee_email = ""
-                        if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
-                            emp = self.selected_employee_info
-                            employee_name = f"{emp['first_name']} {emp['last_name']}"
-                            employee_phone = emp.get('work_phone', '')
-                            employee_email = emp.get('work_email', '')
-                            print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
-                        else:
-                            print("⚠ No employee selected, using default contact info")
+                        # Extract data properly from the quote item
+                        quote_data = main_item.get('data', {})
+                        print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
                         
-                        # Use the generated quote number (guaranteed to exist at this point)
-                        assert self.current_quote_number is not None
-                        quote_number = self.current_quote_number
+                        # Set current_quote_data temporarily for the export
+                        original_quote_data = self.current_quote_data
+                        self.current_quote_data = quote_data
                         
-                        # Get pricing info
-                        unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
-                        if unit_price and unit_price > 0:
-                            unit_price = f"{unit_price:.2f}"
-                        else:
-                            unit_price = "Please Contact"
+                        # Try single-item Word template export
+                        try:
+                            from export.word_template_processor import generate_word_quote
+                            
+                            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+                            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                            print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                            
+                            # Get pricing info
+                            unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
+                            if unit_price and unit_price > 0:
+                                unit_price = f"{unit_price:.2f}"
+                            else:
+                                unit_price = "Please Contact"
+                            
+                            print(f"🚀 Word template export with:")
+                            print(f"   Model: '{model}'")
+                            print(f"   Part Number: '{part_number}'")
+                            print(f"   Customer: '{customer_name}'")
+                            print(f"   Unit Price: '{unit_price}'")
+                            
+                            # Generate the quote using Word template system
+                            success = generate_word_quote(
+                                model=model,
+                                customer_name=customer_name,
+                                attention_name=contact_name,
+                                quote_number=quote_number,
+                                part_number=part_number,
+                                unit_price=unit_price,
+                                supply_voltage=quote_data.get('voltage', '115VAC'),
+                                probe_length=str(quote_data.get('probe_length', 12)),
+                                output_path=filename,
+                                # Additional specs from parsed data
+                                insulator=quote_data.get('insulator', ''),
+                                insulator_material=self._extract_insulator_material_name(quote_data),
+                                insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
+                                probe_material=quote_data.get('probe_material_name', '316SS'),
+                                max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
+                                max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
+                                output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
+                                process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
+                                pc_type=quote_data.get('pc_type', 'NPT'),
+                                pc_size=quote_data.get('pc_size', '¾"'),
+                                pc_matt=quote_data.get('pc_matt', 'SS'),
+                                pc_rate=quote_data.get('pc_rate'),
+                                length_adder=quote_data.get('length_adder', 0.0),
+                                adder_per=quote_data.get('adder_per', 'none'),
+                                # Employee information
+                                employee_name=employee_name,
+                                employee_phone=employee_phone,
+                                employee_email=employee_email,
+                                option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
+                            )
+                            print(f"✅ Word template export success: {success}")
+                            
+                        except Exception as e:
+                            print(f"❌ Word template export failed: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            success = False
                         
-                        print(f"🚀 Word template export with:")
-                        print(f"   Model: '{model}'")
-                        print(f"   Part Number: '{part_number}'")
-                        print(f"   Customer: '{customer_name}'")
-                        print(f"   Unit Price: '{unit_price}'")
-                        
-                        # Generate the quote using Word template system
-                        success = generate_word_quote(
-                            model=model,
-                            customer_name=customer_name,
-                            attention_name=contact_name,
-                            quote_number=quote_number,
-                            part_number=part_number,
-                            unit_price=unit_price,
-                            supply_voltage=quote_data.get('voltage', '115VAC'),
-                            probe_length=str(quote_data.get('probe_length', 12)),
-                            output_path=filename,
-                            # Additional specs from parsed data
-                            insulator=quote_data.get('insulator', ''),
-                            insulator_material=self._extract_insulator_material_name(quote_data),
-                            insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
-                            probe_material=quote_data.get('probe_material_name', '316SS'),
-                            max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
-                            max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
-                            output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
-                            process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
-                            pc_type=quote_data.get('pc_type', 'NPT'),
-                            pc_size=quote_data.get('pc_size', '¾"'),
-                            pc_matt=quote_data.get('pc_matt', 'SS'),
-                            pc_rate=quote_data.get('pc_rate'),
-                            length_adder=quote_data.get('length_adder', 0.0),
-                            adder_per=quote_data.get('adder_per', 'none'),
-                            # Employee information
-                            employee_name=employee_name,
-                            employee_phone=employee_phone,
-                            employee_email=employee_email,
-                            option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
-                        )
-                        print(f"✅ Word template export success: {success}")
-                        
-                    except Exception as e:
-                        print(f"❌ Word template export failed: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        success = False
+                        # Restore original quote data
+                        self.current_quote_data = original_quote_data
                     
                     # If Word template failed, try RTF fallback
                     if not success:
                         print("📄 Trying RTF template fallback...")
                         success = self._try_rtf_template_export(filename)
-                    
-                    # Restore original quote data
-                    self.current_quote_data = original_quote_data
                 
                 if not success:
                     print("❌ Template export failed, using old quote generator...")
@@ -1669,113 +1711,149 @@ Length pricing is automatically calculated for probe assemblies.
                 if filename:
                     print(f"Export filename selected: {filename}")
                     
-                    # Try to use Word template system for the first main item
+                    # Try to use Word template system for multi-item or single item export
                     success = False
                     main_items = [item for item in self.quote_items if item.get('type') == 'main']
                     
                     if main_items:
-                        # Use the first main item for template export
-                        main_item = main_items[0]
-                        part_number = main_item.get('part_number', '')
-                        print(f"Using main item for template: {part_number}")
+                        # Get customer information
+                        customer_name = self.company_var.get() or "Customer Name"
+                        contact_name = self.contact_person_var.get() or "Contact Person"
                         
-                        # Extract data properly from the quote item
-                        quote_data = main_item.get('data', {})
-                        print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+                        # Get employee information for template
+                        employee_name = ""
+                        employee_phone = ""
+                        employee_email = ""
+                        if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                            emp = self.selected_employee_info
+                            employee_name = f"{emp['first_name']} {emp['last_name']}"
+                            employee_phone = emp.get('work_phone', '')
+                            employee_email = emp.get('work_email', '')
+                            print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
+                        else:
+                            print("⚠ No employee selected, using default contact info")
                         
-                        # Set current_quote_data temporarily for the export
-                        original_quote_data = self.current_quote_data
-                        self.current_quote_data = quote_data
+                        # Use the generated quote number (guaranteed to exist at this point)
+                        assert self.current_quote_number is not None
+                        quote_number = self.current_quote_number
                         
-                        # Try Word template export first
-                        try:
-                            from export.word_template_processor import generate_word_quote
+                        # Determine if this is a multi-item quote
+                        is_multi_item = len(self.quote_items) > 1
+                        
+                        if is_multi_item:
+                            print(f"🚀 Multi-item quote export with {len(self.quote_items)} items")
                             
-                            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-                            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-                            print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                            # Try multi-item Word template export using composed approach
+                            try:
+                                from export.word_template_processor import generate_composed_multi_item_quote
+                                
+                                # Prepare employee info
+                                employee_info = {
+                                    'name': employee_name,
+                                    'phone': employee_phone,
+                                    'email': employee_email
+                                }
+                                
+                                success = generate_composed_multi_item_quote(
+                                    quote_items=self.quote_items,
+                                    customer_name=customer_name,
+                                    attention_name=contact_name,
+                                    quote_number=quote_number,
+                                    output_path=filename,
+                                    employee_info=employee_info
+                                )
+                                print(f"✅ Composed multi-item Word template export success: {success}")
+                                
+                            except Exception as e:
+                                print(f"❌ Composed multi-item Word template export failed: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                success = False
+                        
+                        else:
+                            print(f"🚀 Single item quote export")
                             
-                            # Get customer information
-                            customer_name = self.company_var.get() or "Customer Name"
-                            contact_name = self.contact_person_var.get() or "Contact Person"
+                            # Use the first main item for single-item template export
+                            main_item = main_items[0]
+                            part_number = main_item.get('part_number', '')
+                            print(f"Using main item for template: {part_number}")
                             
-                            # Get employee information for template
-                            employee_name = ""
-                            employee_phone = ""
-                            employee_email = ""
-                            if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
-                                emp = self.selected_employee_info
-                                employee_name = f"{emp['first_name']} {emp['last_name']}"
-                                employee_phone = emp.get('work_phone', '')
-                                employee_email = emp.get('work_email', '')
-                                print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
-                            else:
-                                print("⚠ No employee selected, using default contact info")
+                            # Extract data properly from the quote item
+                            quote_data = main_item.get('data', {})
+                            print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
                             
-                            # Use the generated quote number (guaranteed to exist at this point)
-                            assert self.current_quote_number is not None
-                            quote_number = self.current_quote_number
+                            # Set current_quote_data temporarily for the export
+                            original_quote_data = self.current_quote_data
+                            self.current_quote_data = quote_data
                             
-                            # Get pricing info
-                            unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
-                            if unit_price and unit_price > 0:
-                                unit_price = f"{unit_price:.2f}"
-                            else:
-                                unit_price = "Please Contact"
+                            # Try single-item Word template export
+                            try:
+                                from export.word_template_processor import generate_word_quote
+                                
+                                # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
+                                model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                                print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
+                                
+                                # Get pricing info
+                                unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
+                                if unit_price and unit_price > 0:
+                                    unit_price = f"{unit_price:.2f}"
+                                else:
+                                    unit_price = "Please Contact"
+                                
+                                print(f"🚀 Word template export with:")
+                                print(f"   Model: '{model}'")
+                                print(f"   Part Number: '{part_number}'")
+                                print(f"   Customer: '{customer_name}'")
+                                print(f"   Unit Price: '{unit_price}'")
+                                
+                                # Generate the quote using Word template system
+                                success = generate_word_quote(
+                                    model=model,
+                                    customer_name=customer_name,
+                                    attention_name=contact_name,
+                                    quote_number=quote_number,
+                                    part_number=part_number,
+                                    unit_price=unit_price,
+                                    supply_voltage=quote_data.get('voltage', '115VAC'),
+                                    probe_length=str(quote_data.get('probe_length', 12)),
+                                    output_path=filename,
+                                    # Additional specs from parsed data
+                                    insulator=quote_data.get('insulator', ''),
+                                    insulator_material=self._extract_insulator_material_name(quote_data),
+                                    insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
+                                    probe_material=quote_data.get('probe_material_name', '316SS'),
+                                    max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
+                                    max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
+                                    output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
+                                    process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
+                                    pc_type=quote_data.get('pc_type', 'NPT'),
+                                    pc_size=quote_data.get('pc_size', '¾"'),
+                                    pc_matt=quote_data.get('pc_matt', 'SS'),
+                                    pc_rate=quote_data.get('pc_rate'),
+                                    length_adder=quote_data.get('length_adder', 0.0),
+                                    adder_per=quote_data.get('adder_per', 'none'),
+                                    # Employee information
+                                    employee_name=employee_name,
+                                    employee_phone=employee_phone,
+                                    employee_email=employee_email,
+                                    option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
+                                )
+                                print(f"✅ Word template export success: {success}")
+                                
+                            except Exception as e:
+                                print(f"❌ Word template export failed: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                success = False
                             
-                            print(f"🚀 Word template export with:")
-                            print(f"   Model: '{model}'")
-                            print(f"   Part Number: '{part_number}'")
-                            print(f"   Customer: '{customer_name}'")
-                            print(f"   Unit Price: '{unit_price}'")
-                            
-                            # Generate the quote using Word template system
-                            success = generate_word_quote(
-                                model=model,
-                                customer_name=customer_name,
-                                attention_name=contact_name,
-                                quote_number=quote_number,
-                                part_number=part_number,
-                                unit_price=unit_price,
-                                supply_voltage=quote_data.get('voltage', '115VAC'),
-                                probe_length=str(quote_data.get('probe_length', 12)),
-                                output_path=filename,
-                                # Additional specs from parsed data
-                                insulator=quote_data.get('insulator', ''),
-                                insulator_material=self._extract_insulator_material_name(quote_data),
-                                insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
-                                probe_material=quote_data.get('probe_material_name', '316SS'),
-                                max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
-                                max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
-                                output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
-                                process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
-                                pc_type=quote_data.get('pc_type', 'NPT'),
-                                pc_size=quote_data.get('pc_size', '¾"'),
-                                pc_matt=quote_data.get('pc_matt', 'SS'),
-                                pc_rate=quote_data.get('pc_rate'),
-                                length_adder=quote_data.get('length_adder', 0.0),
-                                adder_per=quote_data.get('adder_per', 'none'),
-                                # Employee information
-                                employee_name=employee_name,
-                                employee_phone=employee_phone,
-                                employee_email=employee_email,
-                                option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
-                            )
-                            print(f"✅ Word template export success: {success}")
-                            
-                        except Exception as e:
-                            print(f"❌ Word template export failed: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            success = False
+                            # Restore original quote data
+                            self.current_quote_data = original_quote_data
                         
                         # If Word template failed, try RTF fallback
                         if not success:
                             print("📄 Trying RTF template fallback...")
                             success = self._try_rtf_template_export(filename)
-                        
-                        # Restore original quote data
-                        self.current_quote_data = original_quote_data
                     
                     if not success:
                         print("❌ Template export failed, using old quote generator...")
