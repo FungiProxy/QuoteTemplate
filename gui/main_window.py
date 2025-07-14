@@ -23,6 +23,7 @@ from core.quote_generator import QuoteGenerator
 from core.spare_parts_manager import SparePartsManager
 
 from .dialogs import AboutDialog, SettingsDialog, ExportDialog, ShortcutManagerDialog
+from .autocomplete import AutocompleteEntry
 
 class MainWindow:
     """Main application window"""
@@ -184,8 +185,17 @@ class MainWindow:
         # Part number entry (row 1)
         ttk.Label(input_frame, text="Part Number:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.part_number_var = tk.StringVar()
-        self.part_number_entry = ttk.Entry(input_frame, textvariable=self.part_number_var, font=("Consolas", 12), width=50)
+        self.part_number_entry = AutocompleteEntry(
+            input_frame, 
+            self.db_manager, 
+            textvariable=self.part_number_var, 
+            font=("Consolas", 12), 
+            width=50
+        )
         self.part_number_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        
+        # Set up autocomplete callback
+        self.part_number_entry.set_suggestion_callback(self.on_autocomplete_selected)
         
 
         
@@ -205,40 +215,36 @@ class MainWindow:
         self.shortcuts_button = ttk.Button(input_frame, text="Custom Shortcuts", command=self.show_shortcut_manager)
         self.shortcuts_button.grid(row=1, column=4, pady=(10, 0))
         
-        # Spare Parts section (moved down by 1)
-        spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
-        spare_frame.grid(row=3, column=0, sticky="we", pady=(0, 10))
-        spare_frame.columnconfigure(1, weight=1)
+        # Spare Parts section (HIDDEN - will be implemented later)
+        # spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
+        # spare_frame.grid(row=3, column=0, sticky="we", pady=(0, 10))
+        # spare_frame.columnconfigure(1, weight=1)
         
-        # Spare parts entry (row 1)
-        ttk.Label(spare_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
-        self.spare_part_var = tk.StringVar()
-        self.spare_part_entry = ttk.Entry(spare_frame, textvariable=self.spare_part_var, font=("Consolas", 12), width=50)
-        self.spare_part_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        # # Spare parts entry (row 1)
+        # ttk.Label(spare_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        # self.spare_part_var = tk.StringVar()
+        # self.spare_part_entry = ttk.Entry(spare_frame, textvariable=self.spare_part_var, font=("Consolas", 12), width=50)
+        # self.spare_part_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
         
-
+        # # Quantity and buttons (row 2)
+        # ttk.Label(spare_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
+        # self.spare_qty_var = tk.StringVar(value="1")
+        # spare_qty_entry = ttk.Entry(spare_frame, textvariable=self.spare_qty_var, width=10)
+        # spare_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
         
-        # Quantity and buttons (row 2)
-        ttk.Label(spare_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
-        self.spare_qty_var = tk.StringVar(value="1")
-        spare_qty_entry = ttk.Entry(spare_frame, textvariable=self.spare_qty_var, width=10)
-        spare_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
+        # self.parse_spare_button = ttk.Button(spare_frame, text="Parse & Price", command=self.parse_spare_part)
+        # self.parse_spare_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
         
-        self.parse_spare_button = ttk.Button(spare_frame, text="Parse & Price", command=self.parse_spare_part)
-        self.parse_spare_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
+        # self.add_spare_button = ttk.Button(spare_frame, text="Add to Quote", command=self.add_spare_part)
+        # self.add_spare_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
         
-        self.add_spare_button = ttk.Button(spare_frame, text="Add to Quote", command=self.add_spare_part)
-        self.add_spare_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
+        # # Common spare parts button
+        # self.common_spare_button = ttk.Button(spare_frame, text="Common P/N", command=self.show_spare_parts_help)
+        # self.common_spare_button.grid(row=1, column=4, pady=(10, 0))
         
-        # Common spare parts button
-        self.common_spare_button = ttk.Button(spare_frame, text="Common P/N", command=self.show_spare_parts_help)
-        self.common_spare_button.grid(row=1, column=4, pady=(10, 0))
-        
-
-        
-        # Quote Summary section (moved down by 1)
+        # Quote Summary section (moved up since spare parts is hidden)
         quote_summary_frame = ttk.LabelFrame(main_frame, text="Quote Summary", padding="10")
-        quote_summary_frame.grid(row=4, column=0, sticky="wens", pady=(0, 10))
+        quote_summary_frame.grid(row=3, column=0, sticky="wens", pady=(0, 10))
         quote_summary_frame.columnconfigure(0, weight=1)
         quote_summary_frame.rowconfigure(0, weight=1)
         
@@ -304,16 +310,16 @@ class MainWindow:
         self.quote_number_label = ttk.Label(quote_buttons_frame, text="Quote #: Not Generated", font=("Arial", 10))
         self.quote_number_label.grid(row=0, column=5, padx=(20, 0))
         
-        # Status bar (moved down by 1)
+        # Status bar (moved up since spare parts is hidden)
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.grid(row=5, column=0, sticky="we", pady=(10, 0))
+        status_bar.grid(row=4, column=0, sticky="we", pady=(10, 0))
         
         # Store references to main widgets
         self.main_frame = main_frame
         self.input_frame = input_frame
         self.customer_frame = customer_frame
-        self.spare_frame = spare_frame
+        # self.spare_frame = spare_frame  # Commented out since spare parts panel is hidden
         self.quote_summary_frame = quote_summary_frame
         self.user_frame = user_frame
     
@@ -333,8 +339,8 @@ class MainWindow:
         # Enter key for intelligent part number handling
         self.part_number_entry.bind('<Return>', lambda e: self.handle_part_number_enter())
         
-        # Enter key to add spare part
-        self.spare_part_entry.bind('<Return>', lambda e: self.add_spare_part())
+        # Enter key to add spare part (commented out since spare parts panel is hidden)
+        # self.spare_part_entry.bind('<Return>', lambda e: self.add_spare_part())
         
         # Window closing event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -1251,6 +1257,16 @@ class MainWindow:
         except Exception as e:
             print(f"Error handling user selection: {e}")
     
+    def on_autocomplete_selected(self, text: str):
+        """Handle autocomplete suggestion selection"""
+        # Update the part number variable
+        self.part_number_var.set(text)
+        
+        # Optionally trigger parsing if the part number looks complete
+        if text.count('-') >= 3:  # Basic check for complete part number
+            # Schedule parsing after a short delay to allow user to continue typing
+            self.root.after(500, self.parse_part_number)
+    
     def get_user_initials(self) -> str:
         """Get the initials of the selected user"""
         if self.selected_employee_info:
@@ -1278,88 +1294,88 @@ class MainWindow:
         # Return original text if not a shortcut or expansion failed
         return text
     
-    def add_spare_part(self):
-        """Add a spare part to the list"""
-        part_number = self.spare_part_var.get().strip()
-        
-        if not part_number:
-            messagebox.showwarning("Input Required", "Please enter a spare part number.")
-            return
-        
-        try:
-            quantity = int(self.spare_qty_var.get() or 1)
-            if quantity <= 0:
-                raise ValueError("Quantity must be positive")
-        except ValueError:
-            messagebox.showerror("Invalid Quantity", "Please enter a valid positive quantity.")
-            return
-        
-        try:
-            self.status_var.set("Adding spare part...")
-            self.root.update()
-            
-            # Parse and quote the spare part
-            result = self.spare_parts_manager.parse_and_quote_spare_part(part_number, quantity)
-            
-            if result.get('success'):
-                # Add to our list
-                spare_part_info = {
-                    'original_part_number': part_number,
-                    'description': result['line_item_description'],
-                    'quantity': quantity,
-                    'unit_price': result['unit_price'],
-                    'total_price': result['total_price'],
-                    'parsed_result': result['parsed_part']
-                }
-                
-                self.spare_parts_list.append(spare_part_info)
-                
-                # Also add to quote items list with autocapitalized part number
-                autocapitalized_part_number = part_number.upper()
-                quote_item = {
-                    'type': 'spare',
-                    'part_number': autocapitalized_part_number,
-                    'customer_name': self.company_var.get().strip(), # Changed from self.customer_var.get()
-                    'quantity': quantity,
-                    'data': {
-                        'description': result['line_item_description'],
-                        'pricing': {
-                            'total_price': result['unit_price']
-                        }
-                    },
-                    'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-                
-                self.quote_items.append(quote_item)
-                
-                # Add to quote tree
-                self.add_to_quote_tree("spare", autocapitalized_part_number, result['line_item_description'], 
-                                     quantity, result['unit_price'], result['total_price'])
-                
-                # Clear input fields
-                self.spare_part_var.set("")
-                self.spare_qty_var.set("1")
-                
-                # Update status
-                self.status_var.set(f"Added spare part: {part_number} - Total quote items: {len(self.quote_items)}")
-                
-            else:
-                self.status_var.set("Failed to add spare part")
-                error_msg = result.get('error', 'Unknown error')
-                details = result.get('details', [])
-                suggestions = result.get('suggestions', [])
-                
-                msg = f"Failed to add spare part:\n{error_msg}"
-                if details:
-                    msg += f"\n\nDetails: {', '.join(details)}"
-                if suggestions:
-                    msg += f"\n\nSuggestions: {', '.join(suggestions)}"
-                
-                messagebox.showerror("Add Spare Part Failed", msg)
-        
-        except Exception as e:
-            self.status_var.set("Error adding spare part")
-            messagebox.showerror("Error", f"An error occurred while adding spare part:\n{str(e)}")
+    # def add_spare_part(self):
+    #     """Add a spare part to the list (HIDDEN - will be implemented later)"""
+    #     part_number = self.spare_part_var.get().strip()
+    #     
+    #     if not part_number:
+    #         messagebox.showwarning("Input Required", "Please enter a spare part number.")
+    #         return
+    #     
+    #     try:
+    #         quantity = int(self.spare_qty_var.get() or 1)
+    #         if quantity <= 0:
+    #             raise ValueError("Quantity must be positive")
+    #     except ValueError:
+    #         messagebox.showerror("Invalid Quantity", "Please enter a valid positive quantity.")
+    #         return
+    #     
+    #     try:
+    #         self.status_var.set("Adding spare part...")
+    #         self.root.update()
+    #         
+    #         # Parse and quote the spare part
+    #         result = self.spare_parts_manager.parse_and_quote_spare_part(part_number, quantity)
+    #         
+    #         if result.get('success'):
+    #             # Add to our list
+    #             spare_part_info = {
+    #                 'original_part_number': part_number,
+    #                 'description': result['line_item_description'],
+    #                 'quantity': quantity,
+    #                 'unit_price': result['unit_price'],
+    #                 'total_price': result['total_price'],
+    #                 'parsed_result': result['parsed_part']
+    #             }
+    #             
+    #             self.spare_parts_list.append(spare_part_info)
+    #             
+    #             # Also add to quote items list with autocapitalized part number
+    #             autocapitalized_part_number = part_number.upper()
+    #             quote_item = {
+    #                 'type': 'spare',
+    #                 'part_number': autocapitalized_part_number,
+    #                 'customer_name': self.company_var.get().strip(), # Changed from self.customer_var.get()
+    #                 'quantity': quantity,
+    #                 'data': {
+    #                     'description': result['line_item_description'],
+    #                     'pricing': {
+    #                         'total_price': result['unit_price']
+    #                     }
+    #                 },
+    #                 'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #             }
+    #             
+    #             self.quote_items.append(quote_item)
+    #             
+    #             # Add to quote tree
+    #             self.add_to_quote_tree("spare", autocapitalized_part_number, result['line_item_description'], 
+    #                                  quantity, result['unit_price'], result['total_price'])
+    #             
+    #             # Clear input fields
+    #             self.spare_part_var.set("")
+    #             self.spare_qty_var.set("1")
+    #             
+    #             # Update status
+    #             self.status_var.set(f"Added spare part: {part_number} - Total quote items: {len(self.quote_items)}")
+    #             
+    #         else:
+    #             self.status_var.set("Failed to add spare part")
+    #             error_msg = result.get('error', 'Unknown error')
+    #             details = result.get('details', [])
+    #             suggestions = result.get('suggestions', [])
+    #             
+    #             msg = f"Failed to add spare part:\n{error_msg}"
+    #             if details:
+    #                 msg += f"\n\nDetails: {', '.join(details)}"
+    #             if suggestions:
+    #                 msg += f"\n\nSuggestions: {', '.join(suggestions)}"
+    #             
+    #             messagebox.showerror("Add Spare Part Failed", msg)
+    #     
+    #     except Exception as e:
+    #         self.status_var.set("Error adding spare part")
+    #         messagebox.showerror("Error", f"An error occurred while adding spare part:\n{str(e)}")
     
 
     
@@ -1477,8 +1493,8 @@ Length pricing is automatically calculated for probe assemblies.
             # Ensure the raw data reflects the correct quantity
             self.current_quote_data['quantity'] = quantity
 
-            # Create quote item with autocapitalized part number
-            part_number = self.part_number_var.get().strip().upper()
+            # Create quote item with expanded part number
+            part_number = self.current_quote_data.get('part_number', self.part_number_var.get().strip().upper())
             quote_item = {
                 'type': 'main',
                 'part_number': part_number,
@@ -1637,7 +1653,7 @@ Length pricing is automatically calculated for probe assemblies.
                 details_text.insert(tk.END, f"Model: {data.get('model', 'N/A')}\n")
                 details_text.insert(tk.END, f"Voltage: {data.get('voltage', 'N/A')}\n")
                 details_text.insert(tk.END, f"Probe Length: {data.get('probe_length', 'N/A')}\"\n")
-                details_text.insert(tk.END, f"Process Connection: {data.get('process_connection_type', 'N/A')}\n")
+                details_text.insert(tk.END, f"Process Connection: {data.get('process_connection', 'N/A')}\n")
                 details_text.insert(tk.END, f"Unit Price: ${data.get('total_price', 0):.2f}\n")
             else:  # spare part
                 data = item['data']
@@ -1928,42 +1944,42 @@ Length pricing is automatically calculated for probe assemblies.
         """Start the application main loop"""
         self.root.mainloop()
 
-    def parse_spare_part(self):
-        """Parse spare part number and show information"""
-        spare_part_number = self.spare_part_var.get().strip()
-        
-        if not spare_part_number:
-            messagebox.showwarning("Input Required", "Please enter a spare part number to parse.")
-            return
-        
-        try:
-            self.status_var.set("Parsing spare part...")
-            self.root.update()
-            
-            # First, try to process as a shortcut
-            expanded_spare_part = self.process_shortcut_input(spare_part_number)
-            if expanded_spare_part != spare_part_number:
-                # Shortcut was expanded, update the input field to show the full part number
-                self.spare_part_var.set(expanded_spare_part)
-                # Position cursor at the end of the expanded part number
-                self.spare_part_entry.icursor(tk.END)
-                self.status_var.set(f"Expanded shortcut '{spare_part_number}' to '{expanded_spare_part}'")
-                self.root.update()
-                spare_part_number = expanded_spare_part
-            
-            # Use spare parts manager to parse the part (original or expanded)
-            result = self.spare_parts_manager.parse_and_quote_spare_part(spare_part_number)
-            
-            if result.get('error'):
-                self.status_var.set("Parse failed")
-                messagebox.showerror("Parse Error", f"Failed to parse spare part:\n{result['error']}")
-                return
-            
-            self.status_var.set(f"Spare part parsed successfully: {result.get('description', 'N/A')}")
-            
-        except Exception as e:
-            self.status_var.set("Error occurred")
-            messagebox.showerror("Error", f"An error occurred while parsing spare part:\n{str(e)}")
+    # def parse_spare_part(self):
+    #     """Parse spare part number and show information (HIDDEN - will be implemented later)"""
+    #     spare_part_number = self.spare_part_var.get().strip()
+    #     
+    #     if not spare_part_number:
+    #         messagebox.showwarning("Input Required", "Please enter a spare part number to parse.")
+    #         return
+    #     
+    #     try:
+    #         self.status_var.set("Parsing spare part...")
+    #         self.root.update()
+    #         
+    #         # First, try to process as a shortcut
+    #         expanded_spare_part = self.process_shortcut_input(spare_part_number)
+    #         if expanded_spare_part != spare_part_number:
+    #             # Shortcut was expanded, update the input field to show the full part number
+    #             self.spare_part_var.set(expanded_spare_part)
+    #             # Position cursor at the end of the expanded part number
+    #             self.spare_part_entry.icursor(tk.END)
+    #             self.status_var.set(f"Expanded shortcut '{spare_part_number}' to '{expanded_spare_part}'")
+    #             self.root.update()
+    #             spare_part_number = expanded_spare_part
+    #         
+    #         # Use spare parts manager to parse the part (original or expanded)
+    #         result = self.spare_parts_manager.parse_and_quote_spare_part(spare_part_number)
+    #         
+    #         if result.get('error'):
+    #             self.status_var.set("Parse failed")
+    #             messagebox.showerror("Parse Error", f"Failed to parse spare part:\n{result['error']}")
+    #             return
+    #         
+    #         self.status_var.set(f"Spare part parsed successfully: {result.get('description', 'N/A')}")
+    #         
+    #     except Exception as e:
+    #         self.status_var.set("Error occurred")
+    #         messagebox.showerror("Error", f"An error occurred while parsing spare part:\n{str(e)}")
     
     def edit_quote_item(self):
         """Edit selected quote item"""

@@ -124,13 +124,19 @@ class PartNumberParser:
             if len(parts) < 4:
                 raise ValueError(f"Invalid part number format: {part_number}")
             
+            # Parse each section with shorthand support
+            parsed_model = self._parse_model_shorthand(parts[0])
+            parsed_voltage = self._parse_voltage_shorthand(parts[1])
+            parsed_material = self._parse_material_shorthand(parts[2])
+            parsed_length = self._parse_length_shorthand(parts[3])
+            
             # Basic components
             result = {
                 'original_part_number': part_number,
-                'model': parts[0],
-                'voltage': parts[1], 
-                'probe_material': parts[2],
-                'probe_length': self._parse_length(parts[3]),
+                'model': parsed_model,
+                'voltage': parsed_voltage, 
+                'probe_material': parsed_material,
+                'probe_length': parsed_length,
                 'options': [],
                 'insulator': None,
                 'process_connection': None,
@@ -180,6 +186,145 @@ class PartNumberParser:
         except ValueError:
             return 10.0  # Default length
     
+    def _parse_model_shorthand(self, model_input: str) -> str:
+        """Parse model shorthand and return full model name"""
+        model_input = model_input.upper().strip()
+        
+        # Direct matches first
+        if model_input in self.model_defaults:
+            return model_input
+        
+        # Common shorthand patterns
+        model_shorthands = {
+            'LS2': 'LS2000',
+            'LS21': 'LS2100', 
+            'LS6': 'LS6000',
+            'LS7': 'LS7000',
+            'LS72': 'LS7000/2',
+            'LS8': 'LS8000',
+            'LS82': 'LS8000/2',
+            'LS75': 'LS7500FR',
+            'LS85': 'LS8500FR',
+            'LT9': 'LT9000',
+            'FS10': 'FS10000',
+            'FS1': 'FS10000',
+        }
+        
+        # Check for exact shorthand match
+        if model_input in model_shorthands:
+            return model_shorthands[model_input]
+        
+        # Check for partial matches (e.g., "LS2" matches "LS2000")
+        for model in self.model_defaults.keys():
+            if model.startswith(model_input) or model_input.startswith(model[:len(model_input)]):
+                return model
+        
+        # If no match found, return original input
+        return model_input
+    
+    def _parse_voltage_shorthand(self, voltage_input: str) -> str:
+        """Parse voltage shorthand and return full voltage specification"""
+        voltage_input = voltage_input.upper().strip()
+        
+        # Direct matches first
+        valid_voltages = ['115VAC', '24VDC', '230VAC', '12VDC']
+        if voltage_input in valid_voltages:
+            return voltage_input
+        
+        # Common shorthand patterns
+        voltage_shorthands = {
+            '115': '115VAC',
+            '24': '24VDC', 
+            '230': '230VAC',
+            '12': '12VDC',
+            '112': '115VAC',  # Common typo
+            '110': '115VAC',  # Common approximation
+            '240': '230VAC',  # Common approximation
+        }
+        
+        # Check for exact shorthand match
+        if voltage_input in voltage_shorthands:
+            return voltage_shorthands[voltage_input]
+        
+        # Check for partial matches
+        for voltage in valid_voltages:
+            if voltage.startswith(voltage_input) or voltage_input.startswith(voltage[:len(voltage_input)]):
+                return voltage
+        
+        # If no match found, return original input
+        return voltage_input
+    
+    def _parse_material_shorthand(self, material_input: str) -> str:
+        """Parse material shorthand and return full material code"""
+        material_input = material_input.upper().strip()
+        
+        # Direct matches first
+        if material_input in self.material_codes:
+            return material_input
+        
+        # Common shorthand patterns
+        material_shorthands = {
+            'S': 'S',  # Already correct
+            'H': 'H',  # Already correct
+            'U': 'U',  # Already correct
+            'T': 'T',  # Already correct
+            'TS': 'TS',  # Already correct
+            'C': 'C',  # Already correct
+            'CPVC': 'CPVC',  # Already correct
+            'STAINLESS': 'S',
+            'STEEL': 'S',
+            'HALAR': 'H',
+            'TEFLON': 'T',
+            'UHMW': 'U',
+            'UHMWPE': 'U',
+            'CERAMIC': 'C',
+            '2': 'S',  # Common shorthand for stainless steel
+            '1': 'S',  # Alternative shorthand for stainless steel
+        }
+        
+        # Check for exact shorthand match
+        if material_input in material_shorthands:
+            return material_shorthands[material_input]
+        
+        # Check for partial matches
+        for material in self.material_codes.keys():
+            if material.startswith(material_input) or material_input.startswith(material[:len(material_input)]):
+                return material
+        
+        # If no match found, return original input
+        return material_input
+    
+    def _parse_length_shorthand(self, length_input: str) -> float:
+        """Parse length shorthand and return length value"""
+        length_input = length_input.upper().strip()
+        
+        # Remove quotes if present
+        length_str = length_input.replace('"', '').replace("'", '')
+        
+        try:
+            # Try to parse as number
+            return float(length_str)
+        except ValueError:
+            # Check for common length shorthands
+            length_shorthands = {
+                '10': 10.0,
+                '12': 12.0,
+                '18': 18.0,
+                '24': 24.0,
+                '36': 36.0,
+                '48': 48.0,
+                '60': 60.0,
+                '72': 72.0,
+                '84': 84.0,
+                '96': 96.0,
+            }
+            
+            if length_str in length_shorthands:
+                return length_shorthands[length_str]
+            
+            # Default to 10 inches
+            return 10.0
+    
     def _parse_options_and_modifiers(self, parts: List[str], result: Dict[str, Any]):
         """Parse options, insulators, and connection modifiers"""
         
@@ -196,11 +341,13 @@ class PartNumberParser:
                 else:
                     result['warnings'].append(f"Invalid bent probe format: {part}")
             
-            # Check for known option codes
-            elif part in self.option_codes:
+            # Check for known option codes (including aliases)
+            option_code = self._resolve_option_alias(part)
+            if option_code and option_code in self.option_codes:
                 result['options'].append({
-                    'code': part,
-                    'name': self.option_codes[part]
+                    'code': option_code,
+                    'name': self.option_codes[option_code],
+                    'original_input': part if part != option_code else None
                 })
             
             # Check for process connection override
@@ -218,6 +365,19 @@ class PartNumberParser:
             # Unknown option - add as warning
             else:
                 result['warnings'].append(f"Unknown option or modifier: {part}")
+    
+    def _resolve_option_alias(self, option_code: str) -> Optional[str]:
+        """Resolve an option alias to its standard code"""
+        # First check if it's already a standard code
+        if option_code in self.option_codes:
+            return option_code
+        
+        # Check for alias in database
+        alias = self.db.get_section_alias('option', option_code)
+        if alias:
+            return alias
+        
+        return None
     
     def _apply_material_rules(self, result: Dict[str, Any]):
         """Apply material-specific business rules"""
@@ -544,8 +704,12 @@ class PartNumberParser:
         else:
             pc_matt = raw_matt if 'raw_matt' in locals() else pc_matt
         
+        # Construct the expanded part number from parsed components
+        expanded_part_number = self._construct_expanded_part_number(parsed_part)
+        
         quote_data = {
-            'part_number': parsed_part.get('original_part_number', ''),
+            'part_number': expanded_part_number,
+            'original_input': parsed_part.get('original_part_number', ''),  # Keep original for reference
             'model': parsed_part.get('model', ''),
             'voltage': parsed_part.get('voltage', ''),
             'probe_material': parsed_part.get('probe_material_name', ''),
@@ -657,6 +821,54 @@ class PartNumberParser:
             options.append(f"{option['code']}: {option['name']}")
         
         return options
+    
+    def _construct_expanded_part_number(self, parsed_part: Dict[str, Any]) -> str:
+        """Construct the full, expanded part number from parsed components"""
+        # Format length to remove decimal for whole numbers
+        probe_length = parsed_part.get('probe_length', 10.0)
+        length_str = f"{int(probe_length)}\"" if probe_length.is_integer() else f"{probe_length}\""
+        
+        # Start with the basic components
+        parts = [
+            parsed_part.get('model', ''),
+            parsed_part.get('voltage', ''),
+            parsed_part.get('probe_material', ''),
+            length_str
+        ]
+        
+        # Add options
+        options = parsed_part.get('options', [])
+        for option in options:
+            parts.append(option.get('code', ''))
+        
+        # Add insulator if present
+        if parsed_part.get('insulator'):
+            insulator = parsed_part['insulator']
+            length = insulator.get('length', 4.0)
+            material = insulator.get('material', '')
+            # Format insulator length to remove decimal for whole numbers
+            length_str = f"{int(length)}\"" if length.is_integer() else f"{length}\""
+            if material:
+                parts.append(f"{length_str}{material}INS")
+            else:
+                parts.append(f"{length_str}INS")
+        
+        # Add process connection override if present
+        if parsed_part.get('process_connection'):
+            conn = parsed_part['process_connection']
+            conn_type = conn.get('type', '')
+            size = conn.get('size', '')
+            rating = conn.get('rating', '')
+            
+            if conn_type == 'NPT':
+                parts.append(f"{size}NPT")
+            elif conn_type == 'Flange':
+                parts.append(f"{size}{rating}RF")
+            elif conn_type == 'Tri-Clamp':
+                parts.append(f"{size}TC")
+        
+        # Join all parts with hyphens
+        return '-'.join(parts)
 
     def _calculate_base_insulator_length(self, probe_length: float) -> float:
         """

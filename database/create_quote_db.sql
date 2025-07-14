@@ -171,7 +171,18 @@ CREATE TABLE part_number_shortcuts (
     CONSTRAINT chk_shortcut_alphanumeric CHECK (shortcut GLOB '[a-zA-Z0-9]*' AND LENGTH(shortcut) > 0)
 );
 
--- 12. EMPLOYEES - Employee information for quote attribution
+-- 12. PART_SECTION_ALIASES - Aliases for part number sections
+CREATE TABLE part_section_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    section_type TEXT NOT NULL, -- 'model', 'voltage', 'material', 'option', 'insulator', 'connection'
+    alias TEXT NOT NULL,
+    standard_code TEXT NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(section_type, alias)
+);
+
+-- 13. EMPLOYEES - Employee information for quote attribution
 CREATE TABLE employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     first_name TEXT NOT NULL,
@@ -200,6 +211,9 @@ CREATE INDEX idx_quote_items_quote ON quote_items(quote_id);
 CREATE INDEX idx_spare_parts_part_number ON spare_parts(part_number);
 CREATE INDEX idx_spare_parts_category ON spare_parts(category);
 CREATE INDEX idx_part_number_shortcuts_shortcut ON part_number_shortcuts(shortcut);
+CREATE INDEX idx_part_section_aliases_section ON part_section_aliases(section_type);
+CREATE INDEX idx_part_section_aliases_alias ON part_section_aliases(alias);
+CREATE INDEX idx_part_section_aliases_section_alias ON part_section_aliases(section_type, alias);
 CREATE INDEX idx_employees_email ON employees(work_email);
 CREATE INDEX idx_employees_active ON employees(is_active);
 
@@ -242,7 +256,8 @@ INSERT INTO options (code, name, description, price, price_type, category, compa
 -- ('PEEK', 'PEEK Insulator', 'PEEK Insulator (550F rating)', 120.00, 'fixed', 'insulator', 'ALL', NULL),
 ('SSHOUSING', 'Stainless Steel Housing', 'Stainless Steel Housing (NEMA 4X)', 285.00, 'fixed', 'housing', 'ALL', NULL),
 ('VRHOUSING', 'Epoxy Housing', 'Epoxy Housing (Chemical Resistant)', 150.00, 'fixed', 'housing', 'ALL', NULL),
-('3/4"OD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
+('3/4"OD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}'),
+('3/4"ROD', '3/4" Diameter Probe', '3/4" Diameter Probe (175 base + 175/foot)', 175.00, 'base_plus_per_foot', 'probe', 'ALL', '{"per_foot_price": 175.0}');
 
 -- POPULATE INSULATORS
 INSERT INTO insulators (code, name, description, price_adder, max_temp_rating, compatible_models) VALUES
@@ -466,6 +481,13 @@ SELECT
         ELSE 'MULTIPLE'
     END as primary_model
 FROM spare_parts sp;
+
+-- POPULATE PART SECTION ALIASES
+INSERT INTO part_section_aliases (section_type, alias, standard_code, description) VALUES
+-- Option aliases
+('option', '3/4"ROD', '3/4"OD', '3/4" Diameter Probe - ROD alias'),
+('option', 'HSE', 'SSHOUSING', 'Stainless Steel Housing - HSE alias'),
+('option', 'VRHSE', 'VRHOUSING', 'Epoxy Housing - VRHSE alias');
 
 -- Re-enable foreign key constraints
 PRAGMA foreign_keys = ON; 

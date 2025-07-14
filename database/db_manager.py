@@ -1332,6 +1332,102 @@ class DatabaseManager:
             print(f"Error permanently deleting employee: {e}")
             return False
 
+    # Part Section Alias Methods
+    def get_section_alias(self, section_type: str, alias: str) -> Optional[str]:
+        """Get standard code for a section alias"""
+        query = "SELECT standard_code FROM part_section_aliases WHERE section_type = ? AND alias = ?"
+        results = self.execute_query(query, (section_type, alias))
+        return results[0]['standard_code'] if results else None
+    
+    def get_aliases_for_section(self, section_type: str) -> List[Dict]:
+        """Get all aliases for a specific section type"""
+        query = "SELECT * FROM part_section_aliases WHERE section_type = ? ORDER BY alias"
+        return self.execute_query(query, (section_type,))
+    
+    def get_all_aliases(self) -> List[Dict]:
+        """Get all section aliases"""
+        query = "SELECT * FROM part_section_aliases ORDER BY section_type, alias"
+        return self.execute_query(query)
+    
+    def add_section_alias(self, section_type: str, alias: str, standard_code: str, description: str = "") -> bool:
+        """Add a new section alias"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "INSERT INTO part_section_aliases (section_type, alias, standard_code, description) VALUES (?, ?, ?, ?)",
+                (section_type, alias, standard_code, description)
+            )
+            self.connection.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Error adding section alias: {e}")
+            return False
+    
+    def delete_section_alias(self, section_type: str, alias: str) -> bool:
+        """Delete a section alias"""
+        if not self.connection:
+            if not self.connect():
+                return False
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "DELETE FROM part_section_aliases WHERE section_type = ? AND alias = ?",
+                (section_type, alias)
+            )
+            self.connection.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            print(f"Error deleting section alias: {e}")
+            return False
+    
+    def get_autocomplete_suggestions(self, section_type: str, partial_text: str, limit: int = 10) -> List[Dict]:
+        """Get autocomplete suggestions for a section type"""
+        # Get standard codes for this section type
+        suggestions = []
+        
+        if section_type == 'model':
+            # Get from product_models
+            query = "SELECT model_number as code, description as name FROM product_models WHERE model_number LIKE ? ORDER BY model_number LIMIT ?"
+            suggestions.extend(self.execute_query(query, (f"{partial_text}%", limit)))
+        
+        elif section_type == 'voltage':
+            # Get from voltages
+            query = "SELECT voltage as code, voltage as name FROM voltages WHERE voltage LIKE ? ORDER BY voltage LIMIT ?"
+            suggestions.extend(self.execute_query(query, (f"{partial_text}%", limit)))
+        
+        elif section_type == 'material':
+            # Get from materials
+            query = "SELECT code, name FROM materials WHERE code LIKE ? OR name LIKE ? ORDER BY code LIMIT ?"
+            suggestions.extend(self.execute_query(query, (f"{partial_text}%", f"%{partial_text}%", limit)))
+        
+        elif section_type == 'option':
+            # Get from options
+            query = "SELECT code, name FROM options WHERE code LIKE ? OR name LIKE ? ORDER BY code LIMIT ?"
+            suggestions.extend(self.execute_query(query, (f"{partial_text}%", f"%{partial_text}%", limit)))
+        
+        elif section_type == 'insulator':
+            # Get from insulators
+            query = "SELECT code, name FROM insulators WHERE code LIKE ? OR name LIKE ? ORDER BY code LIMIT ?"
+            suggestions.extend(self.execute_query(query, (f"{partial_text}%", f"%{partial_text}%", limit)))
+        
+        # Add aliases for this section type
+        alias_query = "SELECT alias as code, description as name FROM part_section_aliases WHERE section_type = ? AND alias LIKE ? ORDER BY alias LIMIT ?"
+        alias_suggestions = self.execute_query(alias_query, (section_type, f"{partial_text}%", limit))
+        
+        # Mark aliases with a special flag
+        for suggestion in alias_suggestions:
+            suggestion['is_alias'] = True
+            suggestion['name'] = f"{suggestion['name']} (alias)"
+        
+        suggestions.extend(alias_suggestions)
+        
+        return suggestions[:limit]
+
 # Test the database connection if run directly
 if __name__ == "__main__":
     print("Testing Database Connection...")
