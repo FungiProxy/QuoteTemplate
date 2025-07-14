@@ -407,17 +407,17 @@ INSERT INTO spare_parts (part_number, name, description, price, category, compat
 
 -- POPULATE MODEL SHORTCUTS - Quick access to base models
 INSERT INTO part_number_shortcuts (shortcut, part_number, description) VALUES
-('2', 'LS2000-115VAC-S-12"', 'LS2000 Base Model'),
-('21', 'LS2100-24VDC-S-12"', 'LS2100 Base Model'),
-('6', 'LS6000-115VAC-S-12"', 'LS6000 Base Model'),
-('7', 'LS7000-115VAC-S-12"', 'LS7000 Base Model'),
-('72', 'LS7000/2-115VAC-H-12"', 'LS7000/2 Base Model'),
-('75', 'LS7500FR-115VAC-S-12"', 'LS7500 Base Model'),
-('8', 'LS8000-115VAC-S-12"', 'LS8000 Base Model'),
-('82', 'LS8000/2-115VAC-H-12"', 'LS8000/2 Base Model'),
-('85', 'LS8500FR-115VAC-S-12"', 'LS8500 Base Model'),
-('9', 'LT9000-115VAC-H-12"', 'LT9000 Base Model'),
-('10', 'FS10000-115VAC-S-12"', 'FS10000 Base Model');
+('2',  'LS2000-115VAC-S-10"',     'LS2000 Base Model'),
+('21', 'LS2100-24VDC-S-10"',      'LS2100 Base Model'),
+('6',  'LS6000-115VAC-S-10"',     'LS6000 Base Model'),
+('7',  'LS7000-115VAC-S-10"',     'LS7000 Base Model'),
+('72', 'LS7000/2-115VAC-H-10"',   'LS7000/2 Base Model'),
+('75', 'LS7500FR-115VAC-S-10"',   'LS7500 Base Model'),
+('8',  'LS8000-115VAC-S-10"',     'LS8000 Base Model'),
+('82', 'LS8000/2-115VAC-H-10"',   'LS8000/2 Base Model'),
+('85', 'LS8500FR-115VAC-S-10"',   'LS8500 Base Model'),
+('9',  'LT9000-115VAC-H-10"',     'LT9000 Base Model'),
+('10', 'FS10000-115VAC-S-6"',     'FS10000 Base Model');
 
 -- Create a view for easy price calculations
 CREATE VIEW price_calculator AS
