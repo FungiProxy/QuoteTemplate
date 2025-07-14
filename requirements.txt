@@ -7,6 +7,9 @@ colorama==0.4.6
 # Optional: Data validation
 pydantic==2.5.0
 
+# Build dependencies for creating executable
+pyinstaller>=5.0.0
+
 # Development tools (optional - remove if you want minimal install)
 # pytest>=7.0.0
 # black>=22.0.0 

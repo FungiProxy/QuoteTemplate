@@ -1,0 +1,57 @@
+# Include all Python files
+include *.py
+
+# Include configuration files
+include config/*.py
+include config/*.json
+include config/*.ini
+
+# Include data files
+include data/*.json
+include data/*.csv
+include data/*.txt
+
+# Include database files
+include database/*.sql
+include database/*.db
+
+# Include export templates
+include export/templates/*.docx
+include export/templates/*.txt
+include export/templates/*.md
+
+# Include GUI resources
+include gui/*.py
+
+# Include core modules
+include core/*.py
+
+# Include utility modules
+include utils/*.py
+
+# Include documentation
+include *.md
+include *.txt
+include docs/*.md
+include docs/*.txt
+include docs/*.html
+
+# Include build and configuration files
+include requirements.txt
+include setup.py
+include *.spec
+include *.bat
+include *.ps1
+
+# Exclude development files
+exclude *.pyc
+exclude __pycache__
+exclude .git*
+exclude .vscode
+exclude .idea
+exclude build/
+exclude dist/
+exclude *.egg-info/
+exclude logs/*.log
+exclude test_*.py
+exclude tests/ 

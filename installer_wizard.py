@@ -255,7 +255,10 @@ class InstallerWizard:
             return
         
         # Use the directory of the installer as the base for all file lookups
-        base_dir = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys.executable).parent
+        else:
+            base_dir = Path(__file__).parent / "dist"
         
         # Check if executable exists
         exe_path = base_dir / self.app_exe
@@ -341,6 +344,9 @@ class InstallerWizard:
     def create_desktop_shortcut(self):
         """Create desktop shortcut"""
         try:
+            if not self.install_path:
+                print("Install path is not set. Cannot create desktop shortcut.")
+                return
             desktop = Path.home() / "Desktop"
             shortcut_path = desktop / f"{self.app_name}.lnk"
             
@@ -363,6 +369,9 @@ $Shortcut.Save()
     def create_start_menu_shortcut(self):
         """Create start menu shortcut"""
         try:
+            if not self.install_path:
+                print("Install path is not set. Cannot create start menu shortcut.")
+                return
             start_menu = Path.home() / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"
             app_folder = start_menu / self.app_name
             app_folder.mkdir(exist_ok=True)
@@ -388,6 +397,9 @@ $Shortcut.Save()
     def add_registry_entries(self):
         """Add application to Windows registry"""
         try:
+            if not self.install_path:
+                print("Install path is not set. Cannot add registry entries.")
+                return
             # Add uninstall information
             key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\BabbittQuoteGenerator"
             key = winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path)
@@ -411,27 +423,25 @@ $Shortcut.Save()
         if not self.update_available:
             messagebox.showinfo("Info", "No updates available")
             return
-        
         def update_thread():
             try:
                 self.root.after(0, lambda: self.progress.start())
                 self.root.after(0, lambda: self.status_var.set("Updating..."))
-                
                 # For demo, we'll just copy the current executable
                 # In production, this would download the new version
-                if Path(self.app_exe).exists():
+                if self.current_install_path and Path(self.app_exe).exists():
                     shutil.copy2(self.app_exe, self.current_install_path / self.app_exe)
-                
                 self.root.after(0, lambda: self.progress.stop())
                 self.root.after(0, lambda: self.status_var.set("Update complete"))
-                self.root.after(0, lambda: messagebox.showinfo("Success", 
-                    f"{self.app_name} has been updated to version {self.update_info['version']}"))
-                
+                if self.update_info and 'version' in self.update_info:
+                    msg = f"{self.app_name} has been updated to version {self.update_info['version']}"
+                else:
+                    msg = f"{self.app_name} has been updated."
+                self.root.after(0, lambda: messagebox.showinfo("Success", msg))
             except Exception as e:
                 self.root.after(0, lambda: self.progress.stop())
                 self.root.after(0, lambda: self.status_var.set("Update failed"))
                 self.root.after(0, lambda: messagebox.showerror("Error", f"Update failed: {e}"))
-        
         threading.Thread(target=update_thread, daemon=True).start()
     
     def uninstall_application(self):
@@ -500,14 +510,18 @@ def main():
     """Main entry point"""
     # Check if running as administrator
     try:
-        is_admin = os.getuid() == 0
+        if os.name == "nt":
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        else:
+            is_admin = os.getuid() == 0
     except AttributeError:
-        import ctypes
-        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        is_admin = False
     
     if not is_admin:
         # Re-run as administrator
         try:
+            import ctypes
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, 
                                                f'"{__file__}"', None, 1)
             return

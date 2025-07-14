@@ -1,0 +1,176 @@
+{
+  "FS10000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS2000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS2100": {
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": true
+    }
+  },
+  "LS6000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS7000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS7000/2": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS7500": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "220VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS8000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS8000/2": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "240VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LS8500": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "12VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "220VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  },
+  "LT9000": {
+    "115VAC": {
+      "price_adder": 0.0,
+      "is_default": true
+    },
+    "230VAC": {
+      "price_adder": 0.0,
+      "is_default": false
+    },
+    "24VDC": {
+      "price_adder": 0.0,
+      "is_default": false
+    }
+  }
+}
