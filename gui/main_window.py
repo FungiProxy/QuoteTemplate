@@ -28,15 +28,25 @@ class MainWindow:
     """Main application window"""
     
     def __init__(self):
+        """Initialize the main window"""
         self.root = tk.Tk()
+        self.root.title("Babbitt Quote Generator")
+        self.root.geometry("1200x800")
+        
+        # Initialize components
         self.parser = PartNumberParser()
         self.quote_generator = QuoteGenerator()
         self.spare_parts_manager = SparePartsManager()
-        self.current_quote_data = None
+        
+        # Initialize spare parts manager
         self.spare_parts_list = []  # List to store added spare parts
         self.quote_items = []  # List to store all quote items (main parts + spare parts)
         self.current_quote_number = None  # Track current quote number
+        self.current_quote_data = None  # Track current parsed quote data
         self.selected_employee_info = None  # Store selected employee for template use
+        
+        # Track pending quote numbers for this session (not yet saved to database)
+        self.pending_quote_numbers = set()
         
         # Import database manager for quote functionality
         from database.db_manager import DatabaseManager
@@ -47,7 +57,7 @@ class MainWindow:
         self.create_widgets()
         self.setup_layout()
         self.setup_bindings()
-        
+    
     def setup_window(self):
         """Configure main window properties"""
         self.root.title(WINDOW_TITLE)
@@ -522,7 +532,8 @@ class MainWindow:
                             # Employee information
                             employee_name=employee_name,
                             employee_phone=employee_phone,
-                            employee_email=employee_email
+                            employee_email=employee_email,
+                            option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
                         )
                         print(f"✅ Word template export success: {success}")
                         
@@ -577,6 +588,10 @@ class MainWindow:
                                 )
                                 
                                 if db_save_success:
+                                    # Remove from pending numbers since it's now saved
+                                    if self.current_quote_number in self.pending_quote_numbers:
+                                        self.pending_quote_numbers.remove(self.current_quote_number)
+                                    
                                     self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
                                 else:
                                     self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
@@ -831,6 +846,7 @@ class MainWindow:
                 employee_name=employee_name,
                 employee_phone=employee_phone,
                 employee_email=employee_email,
+                option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
             )
             
             print(f"Word template export success: {success}")
@@ -848,6 +864,10 @@ class MainWindow:
     
     def new_quote(self):
         """Start a new quote"""
+        # If there's a current quote number that hasn't been saved, remove it from pending
+        if self.current_quote_number and self.current_quote_number in self.pending_quote_numbers:
+            self.pending_quote_numbers.remove(self.current_quote_number)
+        
         self.part_number_var.set("")
         self.company_var.set("New Customer") # Changed from self.customer_var.set("New Customer")
         self.main_qty_var.set("1")
@@ -1022,6 +1042,10 @@ class MainWindow:
             )
             
             if success:
+                # Remove from pending numbers since it's now saved
+                if self.current_quote_number in self.pending_quote_numbers:
+                    self.pending_quote_numbers.remove(self.current_quote_number)
+                
                 messagebox.showinfo("Quote Saved", f"Quote {self.current_quote_number} saved successfully!")
                 self.status_var.set(f"Quote {self.current_quote_number} saved to database")
             else:
@@ -1734,7 +1758,8 @@ Length pricing is automatically calculated for probe assemblies.
                                 # Employee information
                                 employee_name=employee_name,
                                 employee_phone=employee_phone,
-                                employee_email=employee_email
+                                employee_email=employee_email,
+                                option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
                             )
                             print(f"✅ Word template export success: {success}")
                             
@@ -1787,6 +1812,10 @@ Length pricing is automatically calculated for probe assemblies.
                                     )
                                     
                                     if db_save_success:
+                                        # Remove from pending numbers since it's now saved
+                                        if self.current_quote_number in self.pending_quote_numbers:
+                                            self.pending_quote_numbers.remove(self.current_quote_number)
+                                        
                                         self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
                                     else:
                                         self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
@@ -1958,10 +1987,14 @@ Length pricing is automatically calculated for probe assemblies.
                 messagebox.showerror("Database Error", "Could not connect to database to generate quote number.")
                 return False
             
-            self.current_quote_number = self.db_manager.generate_quote_number(user_initials)
+            # Generate quote number considering both database and pending numbers
+            self.current_quote_number = self._generate_quote_number_with_pending(user_initials)
             self.update_quote_number_display()
-            
             self.status_var.set(f"Generated quote number: {self.current_quote_number}")
+            
+            # Add to pending numbers (will be removed when saved)
+            self.pending_quote_numbers.add(self.current_quote_number)
+            
             return True
             
         except Exception as e:
@@ -1969,6 +2002,66 @@ Length pricing is automatically calculated for probe assemblies.
             return False
         finally:
             self.db_manager.disconnect()
+    
+    def _generate_quote_number_with_pending(self, user_initials: str) -> str:
+        """
+        Generate quote number considering both database and pending numbers.
+        This ensures proper incrementing even within the same session.
+        """
+        from datetime import datetime
+        
+        # Ensure uppercase initials
+        user_initials = user_initials.upper()
+        
+        # Get current date in MMDDYY format
+        today = datetime.now()
+        date_str = today.strftime("%m%d%y")
+        
+        # Base quote number pattern
+        base_quote_number = f"{user_initials}{date_str}"
+        
+        # Find existing quotes for this user/date combination in database
+        query = """
+        SELECT quote_number FROM quotes 
+        WHERE quote_number LIKE ? 
+        ORDER BY quote_number DESC
+        """
+        
+        existing_quotes = self.db_manager.execute_query(query, (f"{base_quote_number}%",))
+        
+        # Combine database quotes with pending quotes for this base pattern
+        all_quotes = []
+        
+        # Add database quotes
+        for quote in existing_quotes:
+            all_quotes.append(quote['quote_number'])
+        
+        # Add pending quotes that match this base pattern
+        for pending_quote in self.pending_quote_numbers:
+            if pending_quote.startswith(base_quote_number):
+                all_quotes.append(pending_quote)
+        
+        # Sort all quotes to find the highest letter
+        all_quotes.sort(reverse=True)
+        
+        # Determine next letter
+        if not all_quotes:
+            # First quote of the day
+            next_letter = 'A'
+        else:
+            # Get the last quote's letter and increment
+            last_quote = all_quotes[0]
+            if len(last_quote) > len(base_quote_number):
+                last_letter = last_quote[-1]
+                next_letter = chr(ord(last_letter) + 1)
+                
+                # Handle wrap-around if we somehow get past Z
+                if ord(next_letter) > ord('Z'):
+                    next_letter = 'A'  # Reset to A (or could be 'AA', 'AB', etc.)
+            else:
+                next_letter = 'A'
+        
+        return f"{base_quote_number}{next_letter}"
     
     def add_to_quote_tree(self, item_type, part_number, description, quantity, unit_price, total_price):
         """Add an item to the quote tree display"""

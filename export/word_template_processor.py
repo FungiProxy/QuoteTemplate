@@ -8,7 +8,7 @@ and maintains the original professional formatting and layout.
 import os
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING, List
 from datetime import datetime
 import logging
 
@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 try:
     from docx import Document
     from docx.shared import Inches
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
@@ -93,6 +92,123 @@ class WordTemplateProcessor:
         # This preserves the paragraph's formatting but not individual run formatting
         paragraph.clear()
         paragraph.add_run(new_text)
+
+    def _process_conditional_content_document(self, doc, variables: Dict[str, str], model: Optional[str] = None) -> None:
+        """
+        Process conditional content at the document level to avoid breaking formatting.
+        Handles {{if_option:option_code:content}} patterns by either showing or hiding content.
+        Args:
+            doc: Document object
+            variables: Dictionary of variables including option information
+            model: The template/model name (e.g., 'FS10000'), or None
+        """
+        import re
+        try:
+            option_codes = variables.get('option_codes', [])
+            print(f"DEBUG: Raw option_codes from variables: {option_codes}")
+            logger.info(f"Raw option_codes from variables: {option_codes}")
+            print(f"DEBUG: Type of option_codes: {type(option_codes)}")
+            logger.info(f"Type of option_codes: {type(option_codes)}")
+            
+            if isinstance(option_codes, str):
+                # Handle string representation of a list (like "['XSP']")
+                if option_codes.startswith('[') and option_codes.endswith(']'):
+                    # It's a string representation of a list, try to evaluate it safely
+                    try:
+                        import ast
+                        option_codes = ast.literal_eval(option_codes)
+                        print(f"DEBUG: Parsed string list to: {option_codes}")
+                        logger.info(f"Parsed string list to: {option_codes}")
+                    except:
+                        # Fallback: split by comma
+                        option_codes = [opt.strip() for opt in option_codes.split(',') if opt.strip()]
+                        print(f"DEBUG: Fallback split by comma: {option_codes}")
+                        logger.info(f"Fallback split by comma: {option_codes}")
+                else:
+                    # Regular comma-separated string
+                    option_codes = [opt.strip() for opt in option_codes.split(',') if opt.strip()]
+                    print(f"DEBUG: Converted string option_codes to list: {option_codes}")
+                    logger.info(f"Converted string option_codes to list: {option_codes}")
+            elif isinstance(option_codes, list):
+                print(f"DEBUG: Option_codes is already a list: {option_codes}")
+                logger.info(f"Option_codes is already a list: {option_codes}")
+            else:
+                print(f"DEBUG: Unexpected option_codes type: {type(option_codes)}, value: {option_codes}")
+                logger.warning(f"Unexpected option_codes type: {type(option_codes)}, value: {option_codes}")
+                option_codes = []
+            
+            print(f"DEBUG: Final option_codes for processing: {option_codes}")
+            logger.info(f"Final option_codes for processing: {option_codes}")
+            
+            # Process paragraphs for conditional content
+            for paragraph in doc.paragraphs:
+                try:
+                    self._process_conditional_content_paragraph(paragraph, option_codes, model)
+                except Exception as e:
+                    logger.warning(f"Error processing conditional content in paragraph: {e}")
+                    # Continue processing other paragraphs
+            
+            # Process tables for conditional content
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            try:
+                                self._process_conditional_content_paragraph(paragraph, option_codes, model)
+                            except Exception as e:
+                                logger.warning(f"Error processing conditional content in table paragraph: {e}")
+                                # Continue processing other paragraphs
+            
+            # Process headers and footers for conditional content
+            for section in doc.sections:
+                header = section.header
+                for paragraph in header.paragraphs:
+                    try:
+                        self._process_conditional_content_paragraph(paragraph, option_codes, model)
+                    except Exception as e:
+                        logger.warning(f"Error processing conditional content in header: {e}")
+                        # Continue processing other paragraphs
+                
+                footer = section.footer
+                for paragraph in footer.paragraphs:
+                    try:
+                        self._process_conditional_content_paragraph(paragraph, option_codes, model)
+                    except Exception as e:
+                        logger.warning(f"Error processing conditional content in footer: {e}")
+                        # Continue processing other paragraphs
+                        
+        except Exception as e:
+            logger.error(f"Error in conditional content processing: {e}")
+            # Don't let this break the entire template processing
+            # Just log the error and continue
+
+    def _process_conditional_content_paragraph(self, paragraph, option_codes: List[str], model: Optional[str] = None) -> None:
+        """
+        Process conditional content in a single paragraph.
+        Args:
+            paragraph: Paragraph object
+            option_codes: List of option codes present in the part number
+            model: The template/model name (e.g., 'FS10000'), or None
+        """
+        import re
+        try:
+            conditional_pattern = r'\{\{if_option:([^:]+):([^}]+)\}\}'
+            full_text = paragraph.text
+            matches = list(re.finditer(conditional_pattern, full_text))
+            if not matches:
+                return
+            # Remove all conditional content blocks (do not insert any replacement text)
+            for match in reversed(matches):
+                start_pos = match.start()
+                end_pos = match.end()
+                paragraph.clear()
+                new_text = full_text[:start_pos] + full_text[end_pos:]
+                paragraph.add_run(new_text)
+                full_text = new_text
+        except Exception as e:
+            logger.error(f"Error processing conditional content in paragraph: {e}")
+            # Don't let this break the paragraph processing
+            # Just log the error and continue
     
     def replace_variables_in_table(self, table, variables: Dict[str, str]) -> None:
         """
@@ -120,16 +236,38 @@ class WordTemplateProcessor:
         """
         template_path = self.get_template_path(model)
         if not template_path:
+            logger.error(f"Template not found for model: {model}")
             return None
         
         try:
+            logger.info(f"Processing template: {template_path}")
+            logger.info(f"Template variables: {list(variables.keys())}")
+            
             # Load the template document
             doc = Document(str(template_path))
+            logger.info(f"Template loaded successfully, {len(doc.paragraphs)} paragraphs")
             
             # Convert all values to strings
             str_variables = {k: str(v) if v is not None else "" for k, v in variables.items()}
             
+            # Process conditional content first (before regular variable replacement)
+            print("DEBUG: Processing conditional content...")
+            logger.info("Processing conditional content...")
+            print(f"DEBUG: Template variables keys: {list(str_variables.keys())}")
+            logger.info(f"Template variables keys: {list(str_variables.keys())}")
+            if 'option_codes' in str_variables:
+                print(f"DEBUG: Option codes found in variables: {str_variables['option_codes']}")
+                logger.info(f"Option codes found in variables: {str_variables['option_codes']}")
+            else:
+                print("DEBUG: No option_codes found in variables!")
+                logger.warning("No option_codes found in variables!")
+            
+            self._process_conditional_content_document(doc, str_variables, model)
+            print("DEBUG: Conditional content processing completed")
+            logger.info("Conditional content processing completed")
+            
             # Process all paragraphs
+            logger.info("Processing regular template variables...")
             for paragraph in doc.paragraphs:
                 self.replace_variables_in_paragraph(paragraph, str_variables)
             
@@ -147,10 +285,13 @@ class WordTemplateProcessor:
                 for paragraph in footer.paragraphs:
                     self.replace_variables_in_paragraph(paragraph, str_variables)
             
+            logger.info("Template processing completed successfully")
             return doc
             
         except Exception as e:
             logger.error(f"Error processing template {template_path}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     def save_document(self, doc: Any, output_path: str) -> bool:
