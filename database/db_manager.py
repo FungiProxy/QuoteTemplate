@@ -180,8 +180,16 @@ class DatabaseManager:
         
         # Calculate nonstandard length surcharge
         surcharge = 0.0
-        if (material_info['nonstandard_length_surcharge'] > 0 and 
-            probe_length > 96.0):  # Standard threshold for most materials
+        
+        # Special rule for H (Halar) material: $300 adder for non-standard lengths
+        if material_code == 'H':
+            standard_lengths = [10, 12, 18, 24, 36, 48, 60, 72, 84, 96]
+            if probe_length not in standard_lengths:
+                surcharge = 300.0
+        
+        # Original nonstandard length surcharge for other materials
+        elif (material_info['nonstandard_length_surcharge'] > 0 and 
+              probe_length > 96.0):  # Standard threshold for most materials
             surcharge = material_info['nonstandard_length_surcharge']
         
         return {
@@ -337,30 +345,56 @@ class DatabaseManager:
             'options': option_details
         }
     
-    def calculate_insulator_cost(self, insulator_code: str, material_code: Optional[str] = None, model_code: Optional[str] = None) -> float:
-        """Calculate insulator cost with material-specific rules"""
+    def calculate_insulator_cost(self, insulator_code: str, material_code: Optional[str] = None, model_code: Optional[str] = None, insulator_length: Optional[float] = None) -> float:
+        """Calculate insulator cost with material-specific rules and length-based adders"""
         insulator_info = self.get_insulator_info(insulator_code)
         if not insulator_info:
             return 0.0
-        
         cost = insulator_info['price_adder']
-        
+        base_cost = cost
         # Special rule: If probe material is 'h', teflon insulation adder is not applied
-        if (material_code and material_code.upper() == 'H' and 
-            insulator_code.upper() == 'TEF'):
-            return 0.0
-        
+        if (material_code and material_code.upper() == 'H' and insulator_code.upper() == 'TEF'):
+            base_cost = 0.0
         # Special rule: If base insulator is Teflon, teflon insulation adder is not applied
-        if (model_code and insulator_code.upper() == 'TEF'):
+        elif (model_code and insulator_code.upper() == 'TEF'):
             model_info = self.get_model_info(model_code)
             if model_info and model_info.get('default_insulator', '').upper() == 'TEF':
-                return 0.0
+                base_cost = 0.0
+        # Always apply length adder if length > 4"
+        length_adder = 0.0
+        if insulator_length and insulator_length > 4.0:
+            length_adder = self._calculate_insulator_length_adder(insulator_length)
+        return base_cost + length_adder
+    
+    def _calculate_insulator_length_adder(self, insulator_length: float) -> float:
+        """
+        Calculate insulator length adder based on the new pricing rule:
+        - 5-6": $150 adder
+        - 7-8": $200 adder  
+        - 9-10": $250 adder
+        - 11-12": $300 adder
+        - 13-14": $350 adder
+        - 15-16": $400 adder
+        - 17-18": $450 adder
+        - 19-20": $500 adder
+        """
+        if insulator_length <= 4.0:
+            return 0.0
         
-        return cost
+        # Calculate which bracket the length falls into
+        # Each bracket is 2 inches wide, starting at 5"
+        bracket = int((insulator_length - 5.0) / 2.0) + 1
+        
+        # Calculate adder: $150 base + $50 per additional bracket
+        adder = 150.0 + (bracket - 1) * 50.0
+        
+        # Cap at $500 for 20" and above
+        return min(adder, 500.0)
     
     def calculate_total_price(self, model_code: str, voltage: str, material_code: str, 
                             probe_length: float, option_codes: Optional[List[str]] = None, 
                             insulator_code: Optional[str] = None, 
+                            insulator_length: Optional[float] = None,
                             connection_info: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """Calculate total price for a complete configuration"""
         if option_codes is None:
@@ -378,7 +412,7 @@ class DatabaseManager:
         # Insulator pricing
         insulator_cost = 0.0
         if insulator_code:
-            insulator_cost = self.calculate_insulator_cost(insulator_code, material_code, model_code)
+            insulator_cost = self.calculate_insulator_cost(insulator_code, material_code, model_code, insulator_length)
         
         # Process connection pricing
         connection_cost = 0.0

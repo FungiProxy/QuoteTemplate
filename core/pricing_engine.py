@@ -19,6 +19,8 @@ class PricingEngine:
     def __init__(self):
         """Initialize pricing engine with database connection"""
         self.db = DatabaseManager()
+        if not self.db.connect():
+            logger.warning("Failed to connect to database in PricingEngine")
         self.spare_parts_manager = SparePartsManager(self.db)
         
     def calculate_complete_pricing(self, 
@@ -28,6 +30,7 @@ class PricingEngine:
                                  probe_length: float, 
                                  option_codes: Optional[List[str]] = None, 
                                  insulator_code: Optional[str] = None, 
+                                 insulator_length: Optional[float] = None,
                                  connection_info: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Calculate complete pricing for a configuration
@@ -99,7 +102,7 @@ class PricingEngine:
             
             # 4. Calculate insulator pricing
             if insulator_code:
-                insulator_result = self._calculate_insulator_pricing(insulator_code, material_code, model_code)
+                insulator_result = self._calculate_insulator_pricing(insulator_code, material_code, model_code, insulator_length)
                 pricing_result['insulator_cost'] = insulator_result['cost']
                 pricing_result['breakdown'].extend(insulator_result['breakdown'])
             
@@ -246,11 +249,22 @@ class PricingEngine:
             result['length_cost'] = length_cost
             
             # Calculate nonstandard length surcharge
-            if (material_info['nonstandard_length_surcharge'] > 0 and 
-                probe_length > 96.0):  # Nonstandard threshold for most materials
+            surcharge = 0.0
+            
+            # Special rule for H (Halar) material: $300 adder for non-standard lengths
+            if material_code == 'H':
+                standard_lengths = [10, 12, 18, 24, 36, 48, 60, 72, 84, 96]
+                if probe_length not in standard_lengths:
+                    surcharge = 300.0
+                    result['breakdown'].append(f"Non-Standard Length Surcharge (H material, {probe_length}\" not in standard lengths): ${surcharge:.2f}")
+            
+            # Original nonstandard length surcharge for other materials
+            elif (material_info['nonstandard_length_surcharge'] > 0 and 
+                  probe_length > 96.0):  # Nonstandard threshold for most materials
                 surcharge = material_info['nonstandard_length_surcharge']
-                result['surcharge'] = surcharge
                 result['breakdown'].append(f"Nonstandard Length Surcharge (>96\"): ${surcharge:.2f}")
+            
+            result['surcharge'] = surcharge
             
         except Exception as e:
             result['breakdown'].append(f"Length pricing error: {str(e)}")
@@ -436,8 +450,8 @@ class PricingEngine:
         
         return result
     
-    def _calculate_insulator_pricing(self, insulator_code: str, material_code: str, model_code: Optional[str] = None) -> Dict[str, Any]:
-        """Calculate insulator pricing with material-specific rules"""
+    def _calculate_insulator_pricing(self, insulator_code: str, material_code: str, model_code: Optional[str] = None, insulator_length: Optional[float] = None) -> Dict[str, Any]:
+        """Calculate insulator pricing with material-specific rules and length-based adders"""
         result = {
             'cost': 0.0,
             'breakdown': []
@@ -447,26 +461,55 @@ class PricingEngine:
             insulator_info = self.db.get_insulator_info(insulator_code)
             if insulator_info:
                 cost = insulator_info['price_adder']
-                
+                base_cost = cost
                 # Special rule: If probe material is 'h', teflon insulation adder is not applied
                 if material_code.upper() == 'H' and insulator_code.upper() == 'TEF':
-                    result['cost'] = 0.0
+                    base_cost = 0.0
                     result['breakdown'].append(f"Insulator ({insulator_info['name']}): $0.00 (Not applied - Material H)")
                 # Special rule: If base insulator is Teflon, teflon insulation adder is not applied
                 elif model_code and insulator_code.upper() == 'TEF':
                     model_info = self.db.get_model_info(model_code)
                     if model_info and model_info.get('default_insulator', '').upper() == 'TEF':
-                        result['cost'] = 0.0
+                        base_cost = 0.0
                         result['breakdown'].append(f"Insulator ({insulator_info['name']}): $0.00 (Not applied - Base insulator is Teflon)")
-                elif cost > 0:
-                    result['cost'] = cost
-                    result['breakdown'].append(f"Insulator ({insulator_info['name']}): ${cost:.2f}")
-            
+                if base_cost > 0:
+                    result['breakdown'].append(f"Insulator ({insulator_info['name']}): ${base_cost:.2f}")
+                # Always apply length adder if length > 4"
+                length_adder = 0.0
+                if insulator_length and insulator_length > 4.0:
+                    length_adder = self._calculate_insulator_length_adder(insulator_length)
+                    if length_adder > 0:
+                        result['breakdown'].append(f"Insulator Length Adder ({insulator_length}"): ${length_adder:.2f}")
+                result['cost'] = base_cost + length_adder
         except Exception as e:
             result['breakdown'].append(f"Insulator pricing error: {str(e)}")
             logger.error(f"Insulator pricing calculation failed: {str(e)}")
-        
         return result
+    
+    def _calculate_insulator_length_adder(self, insulator_length: float) -> float:
+        """
+        Calculate insulator length adder based on the new pricing rule:
+        - 5-6": $150 adder
+        - 7-8": $200 adder  
+        - 9-10": $250 adder
+        - 11-12": $300 adder
+        - 13-14": $350 adder
+        - 15-16": $400 adder
+        - 17-18": $450 adder
+        - 19-20": $500 adder
+        """
+        if insulator_length <= 4.0:
+            return 0.0
+        
+        # Calculate which bracket the length falls into
+        # Each bracket is 2 inches wide, starting at 5"
+        bracket = int((insulator_length - 5.0) / 2.0) + 1
+        
+        # Calculate adder: $150 base + $50 per additional bracket
+        adder = 150.0 + (bracket - 1) * 50.0
+        
+        # Cap at $500 for 20" and above
+        return min(adder, 500.0)
     
     def _calculate_connection_pricing(self, connection_info: Dict[str, str]) -> Dict[str, Any]:
         """Calculate process connection pricing"""
@@ -618,6 +661,7 @@ class PricingEngine:
                                        probe_length: float, 
                                        option_codes: Optional[List[str]] = None, 
                                        insulator_code: Optional[str] = None, 
+                                       insulator_length: Optional[float] = None,
                                        connection_info: Optional[Dict[str, str]] = None,
                                        spare_parts_list: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """
@@ -647,6 +691,7 @@ class PricingEngine:
                 probe_length=probe_length,
                 option_codes=option_codes,
                 insulator_code=insulator_code,
+                insulator_length=insulator_length,
                 connection_info=connection_info
             )
             
@@ -760,6 +805,7 @@ class PricingEngine:
 def calculate_total_price(model_code: str, voltage: str, material_code: str, 
                          probe_length: float, option_codes: Optional[List[str]] = None, 
                          insulator_code: Optional[str] = None, 
+                         insulator_length: Optional[float] = None,
                          connection_info: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     Convenience function that creates a PricingEngine instance and calculates pricing
@@ -769,7 +815,7 @@ def calculate_total_price(model_code: str, voltage: str, material_code: str,
     engine = PricingEngine()
     return engine.calculate_complete_pricing(
         model_code, voltage, material_code, probe_length, 
-        option_codes, insulator_code, connection_info
+        option_codes, insulator_code, insulator_length, connection_info
     )
 
 # Test the pricing engine

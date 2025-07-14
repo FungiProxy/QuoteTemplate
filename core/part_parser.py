@@ -233,10 +233,10 @@ class PartNumberParser:
     
     def _parse_insulator(self, insulator_part: str) -> Dict[str, Any]:
         """
-        Parse insulator specification like '8"TEFINS'
+        Parse insulator specification like '8"TEFINS' or '6"INS'
         Returns: {'length': 8.0, 'material': 'TEF', 'material_name': 'Teflon'}
         """
-        # Pattern: NUMBER + " + MATERIAL + INS
+        # Pattern 1: NUMBER + " + MATERIAL + INS (e.g., '8"TEFINS')
         match = re.match(r'(\d+(?:\.\d+)?)"([A-Z]+)INS', insulator_part)
         
         if match:
@@ -249,6 +249,20 @@ class PartNumberParser:
                 'material': material_code,
                 'material_name': material_name,
                 'original': insulator_part
+            }
+        
+        # Pattern 2: NUMBER + " + INS (e.g., '6"INS') - material is implied to be base insulator
+        match = re.match(r'(\d+(?:\.\d+)?)"INS', insulator_part)
+        
+        if match:
+            length = float(match.group(1))
+            # Material will be determined later based on base insulator or material rules
+            return {
+                'length': length,
+                'material': None,  # Will be set to base insulator material
+                'material_name': None,  # Will be set based on material
+                'original': insulator_part,
+                'length_only': True  # Flag to indicate this was length-only specification
             }
         
         return {
@@ -375,6 +389,15 @@ class PartNumberParser:
         # Add base insulator length to insulator information if present
         if result.get('insulator'):
             result['insulator']['base_length'] = base_insulator_length
+            
+            # Handle length-only insulator specification (e.g., '6"INS')
+            if result['insulator'].get('length_only'):
+                # Use base insulator material for length-only specifications
+                base_insulator_material = result.get('insulator_material', 'U')
+                result['insulator']['material'] = base_insulator_material
+                result['insulator']['material_name'] = self.insulator_codes.get(base_insulator_material, f"Unknown ({base_insulator_material})")
+                # Remove the length_only flag since we've resolved it
+                result['insulator'].pop('length_only', None)
         else:
             # If no explicit insulator, use base length as actual length
             result['insulator_length'] = base_insulator_length
@@ -391,13 +414,16 @@ class PartNumberParser:
             # Get option codes
             option_codes = [opt['code'] for opt in result.get('options', [])]
             
-            # Get insulator code
+            # Get insulator code and length
             insulator_code = None
+            insulator_length = None
             if result.get('insulator'):
                 insulator_code = result['insulator']['material']
+                insulator_length = result['insulator']['length']
             else:
                 # Use default insulator
                 insulator_code = result.get('insulator_material', 'U')
+                insulator_length = result.get('insulator_length', 4.0)
             
             # Get process connection info
             connection_info = None
@@ -411,7 +437,7 @@ class PartNumberParser:
             
             # Calculate pricing using database
             pricing = self.db.calculate_total_price(
-                model, voltage, material, length, option_codes, insulator_code, connection_info
+                model, voltage, material, length, option_codes, insulator_code, insulator_length, connection_info
             )
             
             # Add pricing to result
