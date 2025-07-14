@@ -58,6 +58,9 @@ class MainWindow:
         self.create_widgets()
         self.setup_layout()
         self.setup_bindings()
+        
+        # Highlight key buttons on startup to draw attention
+        self.root.after(1000, self.highlight_key_buttons)
     
     def setup_window(self):
         """Configure main window properties"""
@@ -205,10 +208,21 @@ class MainWindow:
         main_qty_entry = ttk.Entry(input_frame, textvariable=self.main_qty_var, width=10)
         main_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
         
-        self.parse_button = ttk.Button(input_frame, text="Parse & Price", command=self.parse_part_number)
+        # Create bold, prominent buttons for key actions with darker theme
+        self.parse_button = tk.Button(input_frame, text="🔍 PARSE & PRICE", 
+                                     command=self.parse_part_number,
+                                     font=("Arial", 10, "bold"),
+                                     bg="#2E7D32", fg="white",
+                                     relief=tk.RAISED, bd=2,
+                                     padx=10, pady=3)
         self.parse_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
         
-        self.add_to_quote_button = ttk.Button(input_frame, text="Add to Quote", command=self.add_main_part_to_quote)
+        self.add_to_quote_button = tk.Button(input_frame, text="➕ ADD TO QUOTE", 
+                                            command=self.add_main_part_to_quote,
+                                            font=("Arial", 10, "bold"),
+                                            bg="#1565C0", fg="white",
+                                            relief=tk.RAISED, bd=2,
+                                            padx=10, pady=3)
         self.add_to_quote_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
         
         # Custom Shortcuts button
@@ -290,8 +304,17 @@ class MainWindow:
         quote_buttons_frame = ttk.Frame(quote_summary_frame)
         quote_buttons_frame.grid(row=1, column=0, columnspan=2, sticky="we", pady=(10, 0))
         
-        self.export_button = ttk.Button(quote_buttons_frame, text="Export", command=self.export_quote)
+        # Create bold, prominent export button with darker theme
+        self.export_button = tk.Button(quote_buttons_frame, text="📄 EXPORT QUOTE", 
+                                      command=self.export_quote,
+                                      font=("Arial", 10, "bold"),
+                                      bg="#E65100", fg="white",
+                                      relief=tk.RAISED, bd=2,
+                                      padx=10, pady=3)
         self.export_button.grid(row=0, column=0, padx=(0, 10))
+        
+        # Add hover effects for the prominent buttons
+        self.setup_button_hover_effects()
         
         self.edit_item_button = ttk.Button(quote_buttons_frame, text="Edit Selected", command=self.edit_quote_item)
         self.edit_item_button.grid(row=0, column=1, padx=(0, 10))
@@ -310,9 +333,10 @@ class MainWindow:
         self.quote_number_label = ttk.Label(quote_buttons_frame, text="Quote #: Not Generated", font=("Arial", 10))
         self.quote_number_label.grid(row=0, column=5, padx=(20, 0))
         
-        # Status bar (moved up since spare parts is hidden)
+        # Status bar (moved up since spare parts is hidden) - Made taller for better visibility
         self.status_var = tk.StringVar(value="Ready")
-        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W, 
+                              font=("Arial", 10), padding=(10, 8))
         status_bar.grid(row=4, column=0, sticky="we", pady=(10, 0))
         
         # Store references to main widgets
@@ -326,6 +350,80 @@ class MainWindow:
     def setup_layout(self):
         """Configure layout and grid weights"""
         pass  # Already configured in create_widgets
+    
+    def setup_button_hover_effects(self):
+        """Setup hover effects for prominent buttons with darker theme"""
+        # Parse button hover effects
+        def on_parse_enter(e):
+            self.parse_button.config(bg="#1B5E20", relief=tk.SUNKEN)
+        
+        def on_parse_leave(e):
+            self.parse_button.config(bg="#2E7D32", relief=tk.RAISED)
+        
+        self.parse_button.bind('<Enter>', on_parse_enter)
+        self.parse_button.bind('<Leave>', on_parse_leave)
+        
+        # Add to Quote button hover effects
+        def on_add_enter(e):
+            self.add_to_quote_button.config(bg="#0D47A1", relief=tk.SUNKEN)
+        
+        def on_add_leave(e):
+            self.add_to_quote_button.config(bg="#1565C0", relief=tk.RAISED)
+        
+        self.add_to_quote_button.bind('<Enter>', on_add_enter)
+        self.add_to_quote_button.bind('<Leave>', on_add_leave)
+        
+        # Export button hover effects
+        def on_export_enter(e):
+            self.export_button.config(bg="#BF360C", relief=tk.SUNKEN)
+        
+        def on_export_leave(e):
+            self.export_button.config(bg="#E65100", relief=tk.RAISED)
+        
+        self.export_button.bind('<Enter>', on_export_enter)
+        self.export_button.bind('<Leave>', on_export_leave)
+        
+        # Add click feedback for all prominent buttons
+        self.parse_button.bind('<Button-1>', self.on_parse_click)
+        self.add_to_quote_button.bind('<Button-1>', self.on_add_to_quote_click)
+        self.export_button.bind('<Button-1>', self.on_export_click)
+    
+    def on_parse_click(self, event):
+        """Provide visual feedback when Parse button is clicked"""
+        original_bg = self.parse_button.cget('bg')
+        self.parse_button.config(bg="#1B5E20")  # Darkest green
+        self.root.after(150, lambda: self.parse_button.config(bg=original_bg))
+    
+    def on_add_to_quote_click(self, event):
+        """Provide visual feedback when Add to Quote button is clicked"""
+        original_bg = self.add_to_quote_button.cget('bg')
+        self.add_to_quote_button.config(bg="#0D47A1")  # Darkest blue
+        self.root.after(150, lambda: self.add_to_quote_button.config(bg=original_bg))
+    
+    def on_export_click(self, event):
+        """Provide visual feedback when Export button is clicked"""
+        original_bg = self.export_button.cget('bg')
+        self.export_button.config(bg="#BF360C")  # Darkest orange
+        self.root.after(150, lambda: self.export_button.config(bg=original_bg))
+    
+    def highlight_key_buttons(self):
+        """Briefly highlight key buttons to draw user attention with darker theme"""
+        # Store original colors
+        parse_original = self.parse_button.cget('bg')
+        add_original = self.add_to_quote_button.cget('bg')
+        export_original = self.export_button.cget('bg')
+        
+        # Flash buttons with slightly lighter colors from the darker theme
+        self.parse_button.config(bg="#388E3C")  # Lighter dark green
+        self.add_to_quote_button.config(bg="#1976D2")  # Lighter dark blue
+        self.export_button.config(bg="#F57C00")  # Lighter dark orange
+        
+        # Restore original colors after 2 seconds
+        self.root.after(2000, lambda: [
+            self.parse_button.config(bg=parse_original),
+            self.add_to_quote_button.config(bg=add_original),
+            self.export_button.config(bg=export_original)
+        ])
     
     def setup_bindings(self):
         """Setup keyboard bindings and events"""
@@ -362,8 +460,14 @@ class MainWindow:
             current_input = expanded_input
         
         # Check if we have parsed data and if the current input matches the parsed part number (case-insensitive)
+        # This works for both shortcuts and regular part numbers
+        current_input_upper = current_input.upper()
+        parsed_part_number = self.current_quote_data.get('part_number', '').upper() if self.current_quote_data else ''
+        original_input = self.current_quote_data.get('original_input', '').upper() if self.current_quote_data else ''
+        
+        # Check if current input matches either the expanded part number or the original input
         if (self.current_quote_data and 
-            current_input.upper() == self.current_quote_data.get('part_number', '').upper()):
+            (current_input_upper == parsed_part_number or current_input_upper == original_input)):
             # Second Enter - Input matches already parsed data, so add to quote
             self.add_main_part_to_quote()
             # Keep the part number in the field for easy re-adding
@@ -618,13 +722,27 @@ class MainWindow:
                     # Save quote to database after successful export
                     try:
                         # Calculate total for database save
-                        customer_name = self.company_var.get().strip()
-                        if customer_name and self.current_quote_number:
+                        customer_name = self.company_var.get().strip() or "Customer Name"
+                        if self.current_quote_number:
                             if self.db_manager.connect():
                                 # At this point current_quote_number is guaranteed to be set
                                 assert self.current_quote_number is not None
                                 
-                                total_quote_value = sum(item.get('total_price', 0) for item in self.quote_items)
+                                # Calculate total correctly based on item type
+                                total_quote_value = 0.0
+                                for item in self.quote_items:
+                                    if item['type'] == 'main':
+                                        unit_price = item['data'].get('total_price', 0.0)
+                                    else:  # spare part
+                                        unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
+                                    quantity = item.get('quantity', 1)
+                                    total_quote_value += unit_price * quantity
+                                
+                                print(f"🔧 Attempting database save:")
+                                print(f"   Quote number: {self.current_quote_number}")
+                                print(f"   Customer: {customer_name}")
+                                print(f"   Total value: ${total_quote_value:.2f}")
+                                print(f"   Items count: {len(self.quote_items)}")
                                 
                                 db_save_success = self.db_manager.save_quote(
                                     quote_number=self.current_quote_number,
@@ -640,8 +758,10 @@ class MainWindow:
                                     if self.current_quote_number in self.pending_quote_numbers:
                                         self.pending_quote_numbers.remove(self.current_quote_number)
                                     
+                                    print(f"✅ Database save successful for quote {self.current_quote_number}")
                                     self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
                                 else:
+                                    print(f"❌ Database save failed for quote {self.current_quote_number}")
                                     self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
                                 
                                 self.db_manager.disconnect()
@@ -761,9 +881,8 @@ class MainWindow:
             customer_name = self.company_var.get() or "Customer Name"
             contact_name = self.contact_person_var.get() or "Contact Person"
             
-            # Generate quote number
-            from datetime import datetime
-            quote_number = f"Q-{datetime.now().strftime('%Y%m%d-%H%M')}"
+            # Use the current quote number (should be set by now)
+            quote_number = self.current_quote_number or f"Q-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
             
             # Get pricing info
             unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
@@ -843,9 +962,8 @@ class MainWindow:
                 employee_phone = emp.get('work_phone', '')
                 employee_email = emp.get('work_email', '')
             
-            # Generate quote number
-            from datetime import datetime
-            quote_number = f"Q-{datetime.now().strftime('%Y%m%d-%H%M')}"
+            # Use the current quote number (should be set by now)
+            quote_number = self.current_quote_number or f"Q-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
             
             # Get pricing info
             unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
