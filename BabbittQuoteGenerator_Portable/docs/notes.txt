@@ -1,0 +1,31 @@
+insulators table
+ - standard length for insulators is not determined by insulator material but by the length of the probe.
+ - right now i want all insulator materials available for all models
+
+materials table
+ - C is in the database but incorrect info. it stands for Cable Probe. the base price adder is 80 dollars and the length adder is 45 dollars a foot.
+ - materials u, t, and cpvc all have length adders per inch, the other materials have length adders per foot. in the database this is not listed correctly.
+ - missing all the exotic metals. need to include the ability to manually adjust the quote price when user specifies these
+
+voltages table
+ - not set up like the previous tables. way too much data. all you need is the four voltages (115VAC, 24VDC, 230VAC, and 12VDC) then the other info for each of the rows.
+
+length pricing table
+ - missing c and all the exotic metals 
+ - same issue with the length adders having per inch more than 0 when the adder is for per foot. no need to notate the per inch when it is set to per foot.
+ - ideally this is to allow all materials to be available for all models. we can work on the conditional in the next update.
+
+options table
+ - vr is 50.0 not 75.0
+ - cable probe does not need to be in here.
+ - need to figure out a better way to incorporate the 3qd (175 adder and then 175 per foot)
+ - do the insulators need to be in here?
+
+no table(s) for process connetions
+
+no table for housings
+ - epoxy house = 180 for just the 8000 series
+
+no spare parts table
+
+no application notes table

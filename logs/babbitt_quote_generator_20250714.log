@@ -130,3 +130,18 @@
 2025-07-14 03:22:47 - core.pricing_engine - INFO - Pricing calculated successfully: $1085.00
 2025-07-14 03:22:47 - core.pricing_engine - INFO - Calculating pricing for LS2000-24V-S-25"
 2025-07-14 03:22:47 - core.pricing_engine - INFO - Pricing calculated successfully: $545.00
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Processing template: C:\Users\mchew\QuoteTemplate\export\templates\LS6000_template.docx
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'insulator', 'option_codes']
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Template loaded successfully, 37 paragraphs
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'insulator', 'option_codes']
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-14 19:20:24 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/mchew/QuoteTemplate/ZF071425A.docx

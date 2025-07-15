@@ -22,7 +22,7 @@ from core.part_parser import PartNumberParser
 from core.quote_generator import QuoteGenerator
 from core.spare_parts_manager import SparePartsManager
 
-from .dialogs import SettingsDialog, ExportDialog, ShortcutManagerDialog
+from .dialogs import ExportDialog, ShortcutManagerDialog
 from .autocomplete import AutocompleteEntry
 
 class MainWindow:
@@ -104,8 +104,6 @@ class MainWindow:
         menubar.add_cascade(label="Edit", menu=edit_menu)
         edit_menu.add_command(label="Clear Part Number", command=self.clear_part_number)
         edit_menu.add_command(label="Clear Results", command=self.clear_results)
-        edit_menu.add_separator()
-        edit_menu.add_command(label="Settings", command=self.show_settings)
         
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
@@ -1310,9 +1308,7 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Database Error", f"Database validation error:\n{str(e)}")
     
-    def show_settings(self):
-        """Show settings dialog"""
-        dialog = SettingsDialog(self.root)
+
     
     def show_help(self):
         """Show help/user guide"""
@@ -2478,11 +2474,14 @@ Length pricing is automatically calculated for probe assemblies.
         close_button.pack(pady=(10, 0))
     
     def show_quote_item_context_menu(self, event, quote_item: Dict[str, Any], item_index: int):
-        """Show context menu for quote item with View Details and Remove options"""
+        """Show context menu for quote item with View Details, Edit Quantity, and Remove options"""
         # Create context menu
         context_menu = tk.Menu(self.root, tearoff=0)
         context_menu.add_command(label="View Item Details", 
                                 command=lambda: self.show_part_details_popup(quote_item, self.root))
+        context_menu.add_separator()
+        context_menu.add_command(label="Edit Quantity", 
+                                command=lambda: self.edit_quote_item_quantity_by_index(item_index))
         context_menu.add_separator()
         context_menu.add_command(label="Remove Item from Quote", 
                                 command=lambda: self.remove_quote_item_by_index(item_index))
@@ -2511,6 +2510,40 @@ Length pricing is automatically calculated for probe assemblies.
                 self.update_quote_total()
                 
                 self.status_var.set(f"Removed {part_number} from quote")
+    
+    def edit_quote_item_quantity_by_index(self, item_index: int):
+        """Edit quantity for quote item by index"""
+        if 0 <= item_index < len(self.quote_items):
+            item_to_edit = self.quote_items[item_index]
+            part_number = item_to_edit.get('part_number', 'Unknown')
+            current_quantity = item_to_edit.get('quantity', 1)
+            
+            # Ask for new quantity
+            try:
+                new_quantity = simpledialog.askinteger(
+                    "Edit Quantity", 
+                    f"Enter new quantity for {part_number}:",
+                    minvalue=1,
+                    initialvalue=current_quantity
+                )
+                
+                if new_quantity is None:  # User cancelled
+                    return
+                
+                if new_quantity <= 0:
+                    messagebox.showwarning("Invalid Quantity", "Quantity must be greater than 0.")
+                    return
+                
+                # Update the quantity
+                item_to_edit['quantity'] = new_quantity
+                
+                # Refresh the tree display
+                self._refresh_quote_tree()
+                
+                self.status_var.set(f"Updated quantity for {part_number} to {new_quantity}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to edit quantity: {str(e)}")
     
     def _create_basic_info_tab(self, parent: ttk.Frame, quote_item: Dict[str, Any]):
         """Create basic information tab"""
