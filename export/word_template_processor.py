@@ -625,7 +625,10 @@ def generate_word_quote(
             # Terms and conditions
             'delivery_terms': 'NET 30 W.A.C.',
             'fob_terms': 'FOB, Houston, TX',
-            'quote_validity': '30 days'
+            'quote_validity': '30 days',
+            
+            # Lead time
+            'lead_time': kwargs.get('lead_time', 'In Stock')
         }
         
         # Add any additional variables from kwargs
@@ -790,6 +793,9 @@ def generate_multi_item_word_quote(
             'delivery_terms': 'NET 30 W.A.C.',
             'fob_terms': 'FOB, Houston, TX',
             'quote_validity': '30 days',
+            
+            # Lead time
+            'lead_time': kwargs.get('lead_time', 'In Stock'),
             
             # Multi-item specific variables
             'item_count': str(item_count),

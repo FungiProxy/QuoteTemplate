@@ -1,0 +1,90 @@
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 03:49:20 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/ZF071925A.docx
+2025-07-19 03:52:19 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 03:52:19 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 03:52:20 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/ZF071925B.docx
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 04:02:52 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/Hope ZF071925C.docx
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 04:12:01 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/Hope ZF071925C.docx
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 04:20:45 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/Hope ZF071925D.docx
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Processing template: C:\Users\PC\Desktop\Jimmy\QuoteTemplate\export\templates\LS2000_template.docx
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Template variables: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Template loaded successfully, 38 paragraphs
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Processing conditional content...
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Template variables keys: ['date', 'customer_name', 'company_name', 'attention_name', 'contact_name', 'quote_number', 'part_number', 'quantity', 'unit_price', 'price', 'supply_voltage', 'voltage', 'probe_length', 'length', 'process_connection_size', 'pc_type', 'pc_size', 'pc_matt', 'pc_rate', 'insulator_material', 'insulator_length', 'probe_material', 'probe_diameter', 'max_temperature', 'max_pressure', 'length_adder', 'adder_per', 'ins_material', 'ins_length', 'ins_long', 'ins_temp', 'probe_size', 'output_type', 'company_contact', 'company_phone', 'company_email', 'company_website', 'employee_name', 'employee_phone', 'employee_email', 'delivery_terms', 'fob_terms', 'quote_validity', 'lead_time', 'insulator', 'option_codes']
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Option codes found in variables: []
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Raw option_codes from variables: []
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Type of option_codes: <class 'str'>
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Parsed string list to: []
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Final option_codes for processing: []
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Multi-item info - has_multiple_items: False, item_count: 1
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Conditional content processing completed
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Processing regular template variables...
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Template processing completed successfully
+2025-07-19 04:21:41 - export.word_template_processor - INFO - Quote generated successfully: C:/Users/PC/Desktop/Jimmy/QuoteTemplate/Pope ZF071925E.docx

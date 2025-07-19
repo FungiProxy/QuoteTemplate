@@ -873,12 +873,13 @@ class DatabaseManager:
     # QUOTE MANAGEMENT METHODS
     # ============================================================================
     
-    def generate_quote_number(self, user_initials: str) -> str:
+    def generate_quote_number(self, user_initials: str, customer_name: str = "") -> str:
         """
-        Generate quote number in format: InitialsMMDDYYLetter (e.g., ZF070925A)
+        Generate quote number in format: CustomerName UserInitialsMMDDYYLetter (e.g., ACME ZF071925A)
         
         Args:
             user_initials: User's initials (will be converted to uppercase)
+            customer_name: Customer name to prefix the quote number (optional)
             
         Returns:
             Generated quote number
@@ -892,7 +893,7 @@ class DatabaseManager:
         today = datetime.now()
         date_str = today.strftime("%m%d%y")
         
-        # Base quote number pattern
+        # Base quote number pattern (without customer prefix for database lookup)
         base_quote_number = f"{user_initials}{date_str}"
         
         # Find existing quotes for this user/date combination
@@ -902,7 +903,7 @@ class DatabaseManager:
         ORDER BY quote_number DESC
         """
         
-        existing_quotes = self.execute_query(query, (f"{base_quote_number}%",))
+        existing_quotes = self.execute_query(query, (f"%{base_quote_number}%",))
         
         # Determine next letter
         if not existing_quotes:
@@ -911,17 +912,27 @@ class DatabaseManager:
         else:
             # Get the last quote's letter and increment
             last_quote = existing_quotes[0]['quote_number']
+            # Extract the letter from the end of the quote number
             if len(last_quote) > len(base_quote_number):
-                last_letter = last_quote[-1]
-                next_letter = chr(ord(last_letter) + 1)
-                
-                # Handle wrap-around if we somehow get past Z
-                if ord(next_letter) > ord('Z'):
-                    next_letter = 'A'  # Reset to A (or could be 'AA', 'AB', etc.)
+                # Find the base pattern in the quote number and get the letter after it
+                base_index = last_quote.find(base_quote_number)
+                if base_index != -1 and base_index + len(base_quote_number) < len(last_quote):
+                    last_letter = last_quote[base_index + len(base_quote_number)]
+                    next_letter = chr(ord(last_letter) + 1)
+                    
+                    # Handle wrap-around if we somehow get past Z
+                    if ord(next_letter) > ord('Z'):
+                        next_letter = 'A'  # Reset to A (or could be 'AA', 'AB', etc.)
+                else:
+                    next_letter = 'A'
             else:
                 next_letter = 'A'
         
-        return f"{base_quote_number}{next_letter}"
+        # Return the full quote number with customer prefix if provided
+        if customer_name:
+            return f"{customer_name} {base_quote_number}{next_letter}"
+        else:
+            return f"{base_quote_number}{next_letter}"
     
     def save_quote(self, quote_number: str, customer_name: str, customer_email: str, 
                    quote_items: List[Dict[str, Any]], total_price: float, 
@@ -1056,7 +1067,9 @@ class DatabaseManager:
             ORDER BY created_at DESC 
             LIMIT ?
             """
-            params = (f"{user_initials.upper()}%", limit)
+            # New format: "CustomerName UserInitialsMMDDYYLetter"
+            # Filter by the user initials part within the quote number
+            params = (f"% {user_initials.upper()}%", limit)
         else:
             query = """
             SELECT quote_number, customer_name, customer_email, status, total_price, created_at

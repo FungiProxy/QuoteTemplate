@@ -129,7 +129,7 @@ class MainWindow:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(4, weight=1)  # Quote summary area will be expandable (moved down by 1)
+        main_frame.rowconfigure(5, weight=1)  # Quote summary area will be expandable (moved down by 1)
         
         # User Selection section (TOP - NEW)
         user_frame = ttk.LabelFrame(main_frame, text="User Selection", padding="10")
@@ -158,16 +158,13 @@ class MainWindow:
         customer_frame.columnconfigure(3, weight=1)
         
         # Row 1: Customer Selection
-        ttk.Label(customer_frame, text="Customer:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.customer_var = tk.StringVar(value="")
-        self.customer_entry = ttk.Entry(customer_frame, textvariable=self.customer_var, state="readonly")
-        self.customer_entry.grid(row=0, column=1, sticky="we", padx=(0, 20))
         
         self.select_customer_button = ttk.Button(customer_frame, text="Select Customer", command=self.show_customer_selection)
-        self.select_customer_button.grid(row=0, column=2, padx=(0, 10))
+        self.select_customer_button.grid(row=0, column=0, padx=(0, 10))
         
         self.clear_customer_button = ttk.Button(customer_frame, text="Clear", command=self.clear_customer_info)
-        self.clear_customer_button.grid(row=0, column=3, sticky="w")
+        self.clear_customer_button.grid(row=0, column=1, sticky="w")
         
         # Row 2: Company and Contact Person (read-only display)
         ttk.Label(customer_frame, text="Company:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(5, 0))
@@ -240,36 +237,24 @@ class MainWindow:
         self.shortcuts_button = ttk.Button(input_frame, text="Custom Shortcuts", command=self.show_shortcut_manager)
         self.shortcuts_button.grid(row=1, column=4, pady=(10, 0))
         
-        # Spare Parts section (HIDDEN - will be implemented later)
-        # spare_frame = ttk.LabelFrame(main_frame, text="Spare Parts", padding="10")
-        # spare_frame.grid(row=3, column=0, sticky="we", pady=(0, 10))
-        # spare_frame.columnconfigure(1, weight=1)
+        # Lead Time section
+        lead_time_frame = ttk.LabelFrame(main_frame, text="Lead Time", padding="10")
+        lead_time_frame.grid(row=3, column=0, sticky="we", pady=(0, 10))
+        lead_time_frame.columnconfigure(1, weight=1)
         
-        # # Spare parts entry (row 1)
-        # ttk.Label(spare_frame, text="Spare Part:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
-        # self.spare_part_var = tk.StringVar()
-        # self.spare_part_entry = ttk.Entry(spare_frame, textvariable=self.spare_part_var, font=("Consolas", 12), width=50)
-        # self.spare_part_entry.grid(row=0, column=1, sticky="we", columnspan=4, padx=(0, 10))
+        ttk.Label(lead_time_frame, text="Lead Time:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.lead_time_var = tk.StringVar(value="In Stock")
+        self.lead_time_dropdown = ttk.Combobox(lead_time_frame, textvariable=self.lead_time_var, 
+                                              values=["In Stock", "1 - 2 Weeks", "2 - 3 Weeks", "3 - 4 Weeks", "5 - 6 Weeks"], 
+                                              state="readonly", width=20)
+        self.lead_time_dropdown.grid(row=0, column=1, sticky=tk.W)
         
-        # # Quantity and buttons (row 2)
-        # ttk.Label(spare_frame, text="Quantity:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
-        # self.spare_qty_var = tk.StringVar(value="1")
-        # spare_qty_entry = ttk.Entry(spare_frame, textvariable=self.spare_qty_var, width=10)
-        # spare_qty_entry.grid(row=1, column=1, sticky=tk.W, pady=(10, 0), padx=(0, 20))
+        # Populate lead time dropdown with database values
+        self.populate_lead_time_dropdown()
         
-        # self.parse_spare_button = ttk.Button(spare_frame, text="Parse & Price", command=self.parse_spare_part)
-        # self.parse_spare_button.grid(row=1, column=2, padx=(0, 10), pady=(10, 0))
-        
-        # self.add_spare_button = ttk.Button(spare_frame, text="Add to Quote", command=self.add_spare_part)
-        # self.add_spare_button.grid(row=1, column=3, padx=(0, 10), pady=(10, 0))
-        
-        # # Common spare parts button
-        # self.common_spare_button = ttk.Button(spare_frame, text="Common P/N", command=self.show_spare_parts_help)
-        # self.common_spare_button.grid(row=1, column=4, pady=(10, 0))
-        
-        # Quote Summary section (moved up since spare parts is hidden)
+        # Quote Summary section (moved down by 1)
         quote_summary_frame = ttk.LabelFrame(main_frame, text="Quote Summary", padding="10")
-        quote_summary_frame.grid(row=3, column=0, sticky="wens", pady=(0, 10))
+        quote_summary_frame.grid(row=4, column=0, sticky="wens", pady=(0, 10))
         quote_summary_frame.columnconfigure(0, weight=1)
         quote_summary_frame.rowconfigure(0, weight=1)
         
@@ -348,7 +333,7 @@ class MainWindow:
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W, 
                               font=("Arial", 10), padding=(10, 8))
-        status_bar.grid(row=4, column=0, sticky="we", pady=(10, 0))
+        status_bar.grid(row=5, column=0, sticky="we", pady=(10, 0))
         
         # Store references to main widgets
         self.main_frame = main_frame
@@ -619,7 +604,8 @@ class MainWindow:
                                 attention_name=contact_name,
                                 quote_number=quote_number,
                                 output_path=filename,
-                                employee_info=employee_info
+                                employee_info=employee_info,
+                                lead_time=self.lead_time_var.get()
                             )
                             print(f"✅ Composed multi-item Word template export success: {success}")
                             
@@ -1415,6 +1401,13 @@ class MainWindow:
             print(f"Error populating user dropdown: {e}")
             self.user_dropdown['values'] = ["Error loading employees"]
     
+    def populate_lead_time_dropdown(self):
+        """Populate the lead time dropdown with options from database"""
+        # Use hardcoded values for now to avoid database issues
+        fallback_values = ["In Stock", "1 - 2 Weeks", "2 - 3 Weeks", "3 - 4 Weeks", "5 - 6 Weeks"]
+        self.lead_time_dropdown['values'] = fallback_values
+        self.lead_time_var.set("In Stock")
+    
     def on_user_selected(self, event=None):
         """Handle user selection from dropdown"""
         try:
@@ -2038,6 +2031,8 @@ Length pricing is automatically calculated for probe assemblies.
                                     pc_rate=quote_data.get('pc_rate'),
                                     length_adder=quote_data.get('length_adder', 0.0),
                                     adder_per=quote_data.get('adder_per', 'none'),
+                                    # Lead time from GUI selection
+                                    lead_time=self.lead_time_var.get(),
                                     # Employee information
                                     employee_name=employee_name,
                                     employee_phone=employee_phone,
@@ -2324,8 +2319,12 @@ Length pricing is automatically calculated for probe assemblies.
         """
         Generate quote number considering both database and pending numbers.
         This ensures proper incrementing even within the same session.
+        Format: CustomerName UserInitialsMMDDYYLetter (e.g., ACME ZF071925A)
         """
         from datetime import datetime
+        
+        # Get customer name from GUI
+        customer_name = self.company_var.get().strip() or "CUSTOMER"
         
         # Ensure uppercase initials
         user_initials = user_initials.upper()
@@ -2334,8 +2333,12 @@ Length pricing is automatically calculated for probe assemblies.
         today = datetime.now()
         date_str = today.strftime("%m%d%y")
         
-        # Base quote number pattern
+        # Base quote number pattern (without customer prefix for database lookup)
         base_quote_number = f"{user_initials}{date_str}"
+        
+        print(f"DEBUG: Generating quote number for user {user_initials}, date {date_str}")
+        print(f"DEBUG: Customer name from GUI: '{customer_name}'")
+        print(f"DEBUG: Base quote number pattern: {base_quote_number}")
         
         # Find existing quotes for this user/date combination in database
         query = """
@@ -2344,7 +2347,10 @@ Length pricing is automatically calculated for probe assemblies.
         ORDER BY quote_number DESC
         """
         
-        existing_quotes = self.db_manager.execute_query(query, (f"{base_quote_number}%",))
+        existing_quotes = self.db_manager.execute_query(query, (f"%{base_quote_number}%",))
+        print(f"DEBUG: Found {len(existing_quotes)} existing quotes in database")
+        for quote in existing_quotes:
+            print(f"DEBUG: Database quote: {quote['quote_number']}")
         
         # Combine database quotes with pending quotes for this base pattern
         all_quotes = []
@@ -2354,31 +2360,61 @@ Length pricing is automatically calculated for probe assemblies.
             all_quotes.append(quote['quote_number'])
         
         # Add pending quotes that match this base pattern
+        print(f"DEBUG: Pending quotes: {list(self.pending_quote_numbers)}")
         for pending_quote in self.pending_quote_numbers:
-            if pending_quote.startswith(base_quote_number):
+            if base_quote_number in pending_quote:
                 all_quotes.append(pending_quote)
+                print(f"DEBUG: Added pending quote: {pending_quote}")
         
         # Sort all quotes to find the highest letter
         all_quotes.sort(reverse=True)
+        print(f"DEBUG: All quotes after sorting: {all_quotes}")
         
         # Determine next letter
         if not all_quotes:
             # First quote of the day
             next_letter = 'A'
+            print(f"DEBUG: No existing quotes, using letter: {next_letter}")
         else:
-            # Get the last quote's letter and increment
-            last_quote = all_quotes[0]
-            if len(last_quote) > len(base_quote_number):
-                last_letter = last_quote[-1]
-                next_letter = chr(ord(last_letter) + 1)
+            # Extract letters from all quotes and find the highest one
+            all_letters = []
+            for quote in all_quotes:
+                print(f"DEBUG: Processing quote: {quote}")
+                # Handle both old format (ZF071925A) and new format (Customer ZF071925A)
+                if base_quote_number in quote:
+                    base_index = quote.find(base_quote_number)
+                    if base_index != -1 and base_index + len(base_quote_number) < len(quote):
+                        letter = quote[base_index + len(base_quote_number)]
+                        if letter.isalpha():
+                            all_letters.append(letter)
+                            print(f"DEBUG: Extracted letter '{letter}' from '{quote}'")
+                        else:
+                            print(f"DEBUG: Non-alphabetic character '{letter}' found in '{quote}', skipping")
+                    else:
+                        print(f"DEBUG: Could not extract letter from '{quote}'")
+                else:
+                    print(f"DEBUG: Quote '{quote}' does not contain base pattern '{base_quote_number}'")
+            
+            print(f"DEBUG: All extracted letters: {all_letters}")
+            
+            if not all_letters:
+                next_letter = 'A'
+                print(f"DEBUG: No valid letters found, using: {next_letter}")
+            else:
+                # Find the highest letter
+                highest_letter = max(all_letters)
+                print(f"DEBUG: Highest letter found: {highest_letter}")
+                next_letter = chr(ord(highest_letter) + 1)
+                print(f"DEBUG: Next letter: {next_letter}")
                 
                 # Handle wrap-around if we somehow get past Z
                 if ord(next_letter) > ord('Z'):
                     next_letter = 'A'  # Reset to A (or could be 'AA', 'AB', etc.)
-            else:
-                next_letter = 'A'
+                    print(f"DEBUG: Wrapped around to: {next_letter}")
         
-        return f"{base_quote_number}{next_letter}"
+        result = f"{customer_name} {base_quote_number}{next_letter}"
+        print(f"DEBUG: Final quote number: {result}")
+        return result
     
     def add_to_quote_tree(self, item_type, part_number, description, quantity, unit_price, total_price):
         """Add an item to the quote tree display"""

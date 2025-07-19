@@ -182,7 +182,16 @@ CREATE TABLE part_section_aliases (
     UNIQUE(section_type, alias)
 );
 
--- 13. EMPLOYEES - Employee information for quote attribution
+-- 13. LEAD TIMES - Available lead time options for quotes
+CREATE TABLE lead_times (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    description TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_default BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. EMPLOYEES - Employee information for quote attribution
 -- NOTE: work_phone field stores digits only (e.g., '1234567890')
 -- The application automatically formats them for display as (123) 456-7890
 CREATE TABLE employees (
@@ -216,6 +225,8 @@ CREATE INDEX idx_part_number_shortcuts_shortcut ON part_number_shortcuts(shortcu
 CREATE INDEX idx_part_section_aliases_section ON part_section_aliases(section_type);
 CREATE INDEX idx_part_section_aliases_alias ON part_section_aliases(alias);
 CREATE INDEX idx_part_section_aliases_section_alias ON part_section_aliases(section_type, alias);
+CREATE INDEX idx_lead_times_description ON lead_times(description);
+CREATE INDEX idx_lead_times_sort_order ON lead_times(sort_order);
 CREATE INDEX idx_employees_email ON employees(work_email);
 CREATE INDEX idx_employees_active ON employees(is_active);
 
@@ -490,6 +501,14 @@ INSERT INTO part_section_aliases (section_type, alias, standard_code, descriptio
 ('option', '3/4"ROD', '3/4"OD', '3/4" Diameter Probe - ROD alias'),
 ('option', 'HSE', 'SSHOUSING', 'Stainless Steel Housing - HSE alias'),
 ('option', 'VRHSE', 'VRHOUSING', 'Epoxy Housing - VRHSE alias');
+
+-- POPULATE LEAD TIMES
+INSERT INTO lead_times (description, sort_order, is_default) VALUES
+('In Stock', 1, 1),
+('1 - 2 Weeks', 2, 0),
+('2 - 3 Weeks', 3, 0),
+('3 - 4 Weeks', 4, 0),
+('5 - 6 Weeks', 5, 0);
 
 -- POPULATE DEFAULT EMPLOYEES
 INSERT INTO employees (first_name, last_name, work_email, work_phone, is_active) VALUES

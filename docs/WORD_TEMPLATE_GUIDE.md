@@ -50,6 +50,9 @@ Use the format `{{variable_name}}` for all data that should be replaced. The sys
 - `{{fob_terms}}` - "FOB, Houston, TX"
 - `{{quote_validity}}` - "30 days"
 
+### Lead Time
+- `{{lead_time}}` - Selected lead time (e.g., "In Stock", "1 - 2 Weeks", "2 - 3 Weeks", "3 - 4 Weeks", "5 - 6 Weeks")
+
 ## Example Template Conversion
 
 ### Before (Original):
