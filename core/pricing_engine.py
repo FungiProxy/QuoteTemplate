@@ -479,7 +479,7 @@ class PricingEngine:
                 if insulator_length and insulator_length > 4.0:
                     length_adder = self._calculate_insulator_length_adder(insulator_length)
                     if length_adder > 0:
-                        result['breakdown'].append(f"Insulator Length Adder ({insulator_length}"): ${length_adder:.2f}")
+                        result['breakdown'].append(f"Insulator Length Adder ({insulator_length:.1f}\"): ${length_adder:.2f}")
                 result['cost'] = base_cost + length_adder
         except Exception as e:
             result['breakdown'].append(f"Insulator pricing error: {str(e)}")
@@ -501,14 +501,31 @@ class PricingEngine:
         if insulator_length <= 4.0:
             return 0.0
         
-        # Calculate which bracket the length falls into
-        # Each bracket is 2 inches wide, starting at 5"
-        bracket = int((insulator_length - 5.0) / 2.0) + 1
+        # Handle exact boundary values correctly by using ceiling logic
+        # 5.0-6.99 -> bracket 1, 7.0-8.99 -> bracket 2, etc.
+        if insulator_length < 5.0:
+            return 0.0
+        elif insulator_length <= 6.99:
+            bracket = 1
+        elif insulator_length <= 8.99:
+            bracket = 2
+        elif insulator_length <= 10.99:
+            bracket = 3
+        elif insulator_length <= 12.99:
+            bracket = 4
+        elif insulator_length <= 14.99:
+            bracket = 5
+        elif insulator_length <= 16.99:
+            bracket = 6
+        elif insulator_length <= 18.99:
+            bracket = 7
+        else:  # 19.0 and above
+            bracket = 8
         
         # Calculate adder: $150 base + $50 per additional bracket
         adder = 150.0 + (bracket - 1) * 50.0
         
-        # Cap at $500 for 20" and above
+        # Cap at $500 for 20" and above (bracket 8 = $500)
         return min(adder, 500.0)
     
     def _calculate_connection_pricing(self, connection_info: Dict[str, str]) -> Dict[str, Any]:

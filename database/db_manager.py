@@ -46,6 +46,22 @@ class DatabaseManager:
             self.connection.close()
             self.connection = None
     
+    def get_cursor(self):
+        """Get a database cursor with proper connection handling"""
+        if not self.connection:
+            if not self.connect():
+                raise sqlite3.Error("Failed to establish database connection")
+        return self.connection.cursor()
+    
+    def __enter__(self):
+        """Context manager entry"""
+        self.connect()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensure connection is closed"""
+        self.disconnect()
+    
     def execute_query(self, query: str, params: tuple = ()) -> List[Dict]:
         """Execute a SELECT query and return results"""
         if not self.connection:
@@ -55,6 +71,7 @@ class DatabaseManager:
         if not self.connection:  # Double check after connect attempt
             return []
         
+        cursor = None
         try:
             cursor = self.connection.cursor()
             cursor.execute(query, params)
@@ -68,6 +85,9 @@ class DatabaseManager:
         except sqlite3.Error as e:
             print(f"Query execution error: {e}")
             return []
+        finally:
+            if cursor:
+                cursor.close()
     
     def get_model_info(self, model_code: str) -> Optional[Dict]:
         """Get model information by model code"""
@@ -955,6 +975,7 @@ class DatabaseManager:
             if not self.connect():
                 return False
         
+        cursor = None
         try:
             if not self.connection:
                 return False
@@ -999,6 +1020,9 @@ class DatabaseManager:
             if self.connection:
                 self.connection.rollback()
             return False
+        finally:
+            if cursor:
+                cursor.close()
     
     def load_quote(self, quote_number: str) -> Optional[Dict[str, Any]]:
         """

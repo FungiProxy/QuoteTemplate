@@ -212,7 +212,20 @@ class UpdateManager:
             for file_path in temp_dir.rglob('*'):
                 if file_path.is_file():
                     relative_path = file_path.relative_to(temp_dir)
+                    
+                    # Security check: Prevent path traversal attacks
+                    if '..' in str(relative_path) or relative_path.is_absolute():
+                        self.log_update(f"Skipping potentially dangerous path: {relative_path}")
+                        continue
+                    
                     target_path = self.app_dir / relative_path
+                    
+                    # Additional security check: Ensure target is within app directory
+                    try:
+                        target_path.resolve().relative_to(self.app_dir.resolve())
+                    except ValueError:
+                        self.log_update(f"Skipping path outside app directory: {target_path}")
+                        continue
                     
                     # Create target directory if needed
                     target_path.parent.mkdir(parents=True, exist_ok=True)
