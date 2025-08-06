@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "description": "Configuration schema for unified quote templates",
+  "multi_item_support": {
+    "enabled": true,
+    "item_format": {
+      "header": "ITEM {{item_number}}: {{model}} - {{part_number}}",
+      "quantity_price": "{{quantity}} QTY             $ {{unit_price}} EACH",
+      "specifications_intro": "Technical Specifications:",
+      "separator": "---"
+    },
+    "summary_table": {
+      "enabled_when_multiple": true,
+      "columns": ["Item", "Part Number", "Model", "Quantity", "Unit Price", "Total Price"],
+      "show_grand_total": true
+    }
+  },
+  "conditional_content": {
+    "single_item_markers": ["{{if_single_item:", "{{if_item_count_1:"],
+    "multi_item_markers": ["{{if_multiple_items:", "{{if_item_count_gt_1:"],
+    "item_specific_markers": ["{{if_item_2:", "{{if_item_3:", "{{if_item_4:", "{{if_item_5:"]
+  }
+}

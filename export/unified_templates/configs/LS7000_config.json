@@ -1,0 +1,66 @@
+{
+  "model": "LS7000",
+  "description": "LS7000 Level Switch Quote",
+  "technical_specifications": [
+    {
+      "label": "Supply Voltage",
+      "value": "{{supply_voltage}}",
+      "static": false
+    },
+    {
+      "label": "Output",
+      "value": "10 Amp SPDT Relay",
+      "static": true
+    },
+    {
+      "label": "Fail-Safe",
+      "value": "Selectable Fail-Safe High or Low Level",
+      "static": true
+    },
+    {
+      "label": "Process Connection",
+      "value": "{{pc_size}} {{pc_rate}} {{pc_type}}, {{pc_matt}} ({{max_pressure}} Max.)",
+      "static": false
+    },
+    {
+      "label": "Insulator",
+      "value": "{{ins_length}}\" {{ins_material}} ({{ins_temp}} F)",
+      "static": false
+    },
+    {
+      "label": "Probe",
+      "value": "{{probe_size}}\" Diameter {{probe_material}} x {{probe_length}}\"",
+      "static": false
+    },
+    {
+      "label": "Housing",
+      "value": "Cast Aluminum, NEMA 7, C, D; NEMA 9, E, F, & G",
+      "static": true
+    },
+    {
+      "label": "Temperature Range",
+      "value": "Operating Temperature: -40°F to {{max_temperature}}",
+      "static": false
+    },
+    {
+      "label": "Warranty",
+      "value": "2-Year Warranty",
+      "static": true
+    }
+  ],
+  "optional_sections": {
+    "notes": {
+      "enabled": false,
+      "content": [
+        "Other supply voltages available at no extra charge",
+        "Special materials of construction – please call factory",
+        "High temperature applications available"
+      ]
+    }
+  },
+  "default_values": {
+    "max_pressure": "500 PSI",
+    "max_temperature": "750°F",
+    "output_type": "10 Amp SPDT Relay"
+  }
+}
