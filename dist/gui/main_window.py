@@ -508,7 +508,7 @@ class MainWindow:
             self.current_quote_data = None
     
     def export_quote(self):
-        """Export current quote to Word document"""
+        """Export current quote to Word document using unified quote generator"""
         print("=== EXPORT_QUOTE FUNCTION CALLED ===")
         print(f"Quote items: {self.quote_items}")
         
@@ -555,7 +555,7 @@ class MainWindow:
             if filename:
                 print(f"Export filename selected: {filename}")
                 
-                # Try to use Word template system for multi-item or single item export
+                # Try to use unified quote generator for both single and multi-item export
                 success = False
                 main_items = [item for item in self.quote_items if item.get('type') == 'main']
                 
@@ -581,233 +581,159 @@ class MainWindow:
                     assert self.current_quote_number is not None
                     quote_number = self.current_quote_number
                     
-                    # Determine if this is a multi-item quote
-                    is_multi_item = len(self.quote_items) > 1
+                    # Use unified template system for completely unified formatting
+                    print(f"🚀 Unified template export with {len(self.quote_items)} items")
                     
-                    if is_multi_item:
-                        print(f"🚀 Multi-item quote export with {len(self.quote_items)} items")
+                    try:
+                        from export.unified_templates.unified_template_processor import generate_unified_quote
                         
-                        # Try multi-item Word template export using composed approach
-                        try:
-                            from export.word_template_processor import generate_composed_multi_item_quote
-                            
-                            # Prepare employee info
-                            employee_info = {
-                                'name': employee_name,
-                                'phone': employee_phone,
-                                'email': employee_email
-                            }
-                            
-                            success = generate_composed_multi_item_quote(
-                                quote_items=self.quote_items,
-                                customer_name=customer_name,
-                                attention_name=contact_name,
-                                quote_number=quote_number,
-                                output_path=filename,
-                                employee_info=employee_info,
-                                lead_time=self.lead_time_var.get()
-                            )
-                            print(f"✅ Composed multi-item Word template export success: {success}")
-                            
-                        except Exception as e:
-                            print(f"❌ Composed multi-item Word template export failed: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            success = False
-                    
-                    else:
-                        print(f"🚀 Single item quote export")
+                        # Prepare employee info
+                        employee_info = {
+                            'name': employee_name,
+                            'phone': employee_phone,
+                            'email': employee_email
+                        }
                         
-                        # Use the first main item for single-item template export
-                        main_item = main_items[0]
-                        part_number = main_item.get('part_number', '')
-                        print(f"Using main item for template: {part_number}")
+                        success = generate_unified_quote(
+                            quote_items=self.quote_items,
+                            customer_name=customer_name,
+                            attention_name=contact_name,
+                            quote_number=quote_number,
+                            output_path=filename,
+                            employee_info=employee_info,
+                            lead_time=self.lead_time_var.get()
+                        )
+                        print(f"✅ Unified template export success: {success}")
                         
-                        # Extract data properly from the quote item
-                        quote_data = main_item.get('data', {})
-                        print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+                    except Exception as e:
+                        print(f"❌ Unified template export failed: {e}")
+                        import traceback
+                        traceback.print_exc()
                         
-                        # Set current_quote_data temporarily for the export
-                        original_quote_data = self.current_quote_data
-                        self.current_quote_data = quote_data
-                        
-                        # Try single-item Word template export
-                        try:
-                            from export.word_template_processor import generate_word_quote
-                            
-                            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-                            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-                            print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
-                            
-                            # Get pricing info
-                            unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
-                            if unit_price and unit_price > 0:
-                                unit_price = f"{unit_price:.2f}"
-                            else:
-                                unit_price = "Please Contact"
-                            
-                            print(f"🚀 Word template export with:")
-                            print(f"   Model: '{model}'")
-                            print(f"   Part Number: '{part_number}'")
-                            print(f"   Customer: '{customer_name}'")
-                            print(f"   Unit Price: '{unit_price}'")
-                            
-                            # Generate the quote using Word template system
-                            success = generate_word_quote(
+                        # Fallback to old system if unified fails
+                        is_multi_item = len(self.quote_items) > 1
+                        if is_multi_item:
+                            print("🔄 Falling back to composed multi-item export...")
+                            try:
+                                from export.word_template_processor import generate_composed_multi_item_quote
+                                
+                                employee_info = {
+                                    'name': employee_name,
+                                    'phone': employee_phone,
+                                    'email': employee_email
+                                }
+                                
+                                success = generate_composed_multi_item_quote(
+                                    quote_items=self.quote_items,
+                                    customer_name=customer_name,
+                                    attention_name=contact_name,
+                                    quote_number=quote_number,
+                                    output_path=filename,
+                                    employee_info=employee_info,
+                                    lead_time=self.lead_time_var.get()
+                                )
+                                print(f"✅ Fallback multi-item export success: {success}")
+                                
+                            except Exception as fallback_e:
+                                print(f"❌ Fallback multi-item export also failed: {fallback_e}")
+                                success = False
+                        else:
+                            # For single items, try the old single-item export as fallback
+                            print("🔄 Falling back to single-item export...")
+                            try:
+                                from export.word_template_processor import generate_word_quote
+                                
+                                main_item = main_items[0]
+                                part_number = main_item.get('part_number', '')
+                                quote_data = main_item.get('data', {})
+                                
+                                model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                                unit_price = quote_data.get('total_price', 0)
+                                unit_price_str = f"{unit_price:.2f}" if unit_price > 0 else "Please Contact"
+                                
+                                success = generate_word_quote(
                                     model=model,
                                     customer_name=customer_name,
                                     attention_name=contact_name,
                                     quote_number=quote_number,
                                     part_number=part_number,
-                                    unit_price=unit_price,
+                                    unit_price=unit_price_str,
                                     supply_voltage=quote_data.get('voltage', '115VAC'),
                                     probe_length=str(quote_data.get('probe_length', 12)),
                                     output_path=filename,
-                                    # Additional specs from parsed data
-                                    insulator=quote_data.get('insulator', ''),
-                                    insulator_material=self._extract_insulator_material_name(quote_data),
-                                    insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
-                                    probe_material=quote_data.get('probe_material_name', '316SS'),
-                                    max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
-                                    max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
-                                    output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
-                                    process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
-                                    pc_type=quote_data.get('pc_type', 'NPT'),
-                                    pc_size=quote_data.get('pc_size', '¾"'),
-                                    pc_matt=quote_data.get('pc_matt', 'SS'),
-                                    pc_rate=quote_data.get('pc_rate'),
-                                    length_adder=quote_data.get('length_adder', 0.0),
-                                    adder_per=quote_data.get('adder_per', 'none'),
-                                    # Lead time from GUI selection
-                                    lead_time=self.lead_time_var.get(),
-                                    # Employee information
                                     employee_name=employee_name,
                                     employee_phone=employee_phone,
                                     employee_email=employee_email,
-                                    option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
-                            )
-                            print(f"✅ Word template export success: {success}")
-                            
-                        except Exception as e:
-                            print(f"❌ Word template export failed: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            success = False
-                        
-                        # Restore original quote data
-                        self.current_quote_data = original_quote_data
-                    
-                    # If Word template failed, try RTF fallback
-                    if not success:
-                        print("📄 Trying RTF template fallback...")
-                        success = self._try_rtf_template_export(filename)
-                
-                if not success:
-                    print("❌ Template export failed, using old quote generator...")
-                    # Create combined data for export
-                    combined_data = {
-                        'type': 'multi_item_quote',
-                        'items': self.quote_items,
-                        'total_items': len(self.quote_items),
-                        'total_price': sum(item.get('total_price', 0) for item in self.quote_items),
-                        'export_timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }
-                    
-                    # Export to Word using old system
-                    output_path = self.quote_generator.generate_quote(combined_data, output_path=filename)
-                    success = bool(output_path)
-                
-                if success:
-                    # Save quote to database after successful export
-                    try:
-                        # Calculate total for database save
-                        customer_name = self.company_var.get().strip() or "Customer Name"
-                        if self.current_quote_number:
-                            if self.db_manager.connect():
-                                # At this point current_quote_number is guaranteed to be set
-                                assert self.current_quote_number is not None
-                                
-                                # Calculate total correctly based on item type
-                                total_quote_value = 0.0
-                                for item in self.quote_items:
-                                    if item['type'] == 'main':
-                                        unit_price = item['data'].get('total_price', 0.0)
-                                    else:  # spare part
-                                        unit_price = item['data'].get('pricing', {}).get('total_price', 0.0)
-                                    quantity = item.get('quantity', 1)
-                                    total_quote_value += unit_price * quantity
-                                
-                                print(f"🔧 Attempting database save:")
-                                print(f"   Quote number: {self.current_quote_number}")
-                                print(f"   Customer: {customer_name}")
-                                print(f"   Total value: ${total_quote_value:.2f}")
-                                print(f"   Items count: {len(self.quote_items)}")
-                                
-                                db_save_success = self.db_manager.save_quote(
-                                    quote_number=self.current_quote_number,
-                                    customer_name=customer_name,
-                                    customer_email=self.email_var.get().strip(),
-                                    quote_items=self.quote_items,
-                                    total_price=total_quote_value,
-                                    user_initials=user_initials
+                                    lead_time=self.lead_time_var.get(),
+                                    **quote_data
                                 )
+                                print(f"✅ Fallback single-item export success: {success}")
                                 
-                                if db_save_success:
-                                    # Remove from pending numbers since it's now saved
-                                    if self.current_quote_number in self.pending_quote_numbers:
-                                        self.pending_quote_numbers.remove(self.current_quote_number)
-                                    
-                                    print(f"✅ Database save successful for quote {self.current_quote_number}")
-                                    self.status_var.set(f"Quote {self.current_quote_number} exported and saved to database")
-                                else:
-                                    print(f"❌ Database save failed for quote {self.current_quote_number}")
-                                    self.status_var.set(f"Quote {self.current_quote_number} exported (database save failed)")
-                                
-                                self.db_manager.disconnect()
-                    except Exception as db_error:
-                        print(f"Database save error: {db_error}")
-                        # Don't show error to user since export was successful
+                            except Exception as fallback_e:
+                                print(f"❌ Fallback single-item export also failed: {fallback_e}")
+                                success = False
                     
-                    self.status_var.set(f"Quote exported to {filename}")
-                    messagebox.showinfo("Export Success", f"Quote exported successfully to:\n{filename}\n\nQuote Number: {self.current_quote_number}")
+                    if success:
+                        # Save quote to database after successful export
+                        try:
+                            # Calculate total for database save
+                            customer_name = self.company_var.get().strip() or "Customer Name"
+                            if self.current_quote_number:
+                                if self.db_manager.connect():
+                                    # At this point current_quote_number is guaranteed to be set
+                                    assert self.current_quote_number is not None
+                                    
+                                    # Calculate total correctly based on item type
+                                    total_quote_value = 0.0
+                                    for item in self.quote_items:
+                                        if item.get('type') == 'main':
+                                            unit_price = item.get('data', {}).get('total_price', 0)
+                                        else:  # spare part
+                                            unit_price = item.get('data', {}).get('pricing', {}).get('total_price', 0)
+                                        quantity = item.get('quantity', 1)
+                                        total_quote_value += unit_price * quantity
+                                    
+                                    # Save the quote to database
+                                    self.db_manager.save_quote(
+                                        quote_number=self.current_quote_number,
+                                        customer_name=customer_name,
+                                        customer_email=self.contact_person_var.get().strip(),
+                                        quote_items=self.quote_items,
+                                        total_price=total_quote_value,
+                                        user_initials=self.get_user_initials()
+                                    )
+                                    print(f"✅ Quote saved to database: {self.current_quote_number}")
+                                    self.db_manager.disconnect()
+                            
+                        except Exception as db_e:
+                            print(f"⚠ Database save failed (export still successful): {db_e}")
+                            # Don't fail the export if database save fails
+                        
+                        print("✅ Export completed successfully")
+                        self.status_var.set(f"Quote exported successfully: {filename}")
+                        messagebox.showinfo("Export Complete", f"Quote exported successfully to:\n{filename}")
+                        
+                        # Clear the quote after successful export and save
+                        self.quote_items.clear()
+                        self._refresh_quote_tree()
+                        self.current_quote_number = None  # Reset for next quote
+                        self.status_var.set("Quote exported and cleared - ready for new quote")
+                        
+                    else:
+                        print("❌ Export failed - all methods unsuccessful")
+                        self.status_var.set("Export failed")
+                        messagebox.showerror("Export Error", "Failed to export quote using all available methods.")
+                    
                 else:
-                    print("❌ Export failed - all methods unsuccessful")
-                    self.status_var.set("Export failed")
-                    messagebox.showerror("Export Error", "Failed to export quote using all available methods.")
-                
+                    print("❌ No main items found in quote")
+                    messagebox.showerror("Export Error", "No main items found in quote.")
+                    
         except Exception as e:
             print(f"❌ Exception in export_quote: {e}")
             import traceback
             traceback.print_exc()
             self.status_var.set("Export failed")
             messagebox.showerror("Export Error", f"Failed to export quote:\n{str(e)}")
-    
-    def _get_insulator_material_name(self) -> str:
-        """Get the proper insulator material display name from parsed quote data"""
-        if not self.current_quote_data:
-            return 'UHMWPE'
-        
-        # First try to extract from the formatted insulator string
-        insulator_display = self.current_quote_data.get('insulator', '')
-        if insulator_display and '"' in insulator_display:
-            # Extract material from strings like "4.0\" Teflon"
-            parts = insulator_display.split('"')
-            if len(parts) > 1:
-                material = parts[1].strip()
-                if material:
-                    return material
-        
-        # Fallback: translate material code to display name
-        material_code = self.current_quote_data.get('insulator_material', 'U')
-        material_codes = {
-            'TEF': 'Teflon',
-            'U': 'UHMWPE', 
-            'UHMWPE': 'UHMWPE',
-            'DEL': 'DELRIN',
-            'PEEK': 'PEEK',
-            'CER': 'Ceramic'
-        }
-        return material_codes.get(material_code, 'UHMWPE')
 
     @staticmethod
     def _extract_insulator_material_name(quote_data: dict) -> str:
@@ -838,114 +764,58 @@ class MainWindow:
         return material_codes.get(material_code, 'UHMWPE')
 
     def _try_rtf_template_export(self, export_path: str) -> bool:
-        """Try exporting using the new Word template system"""
+        """Try exporting using the unified template system with master template"""
         try:
             # Check if we have quote data
             if not self.current_quote_data:
                 print("No quote data available")
                 return False
                 
-            # Import the new template systems
+            # Import the unified template system
             import sys
             import os
             sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
             
-            # Try Word template system first (preferred)
+            # Try unified template system (primary method)
             try:
-                from export.word_template_processor import generate_word_quote
-                print("✓ Word template processor imported successfully")
-                print("Attempting Word template export...")
+                from export.unified_templates.unified_template_processor import generate_unified_quote
+                print("✓ Unified template processor imported successfully")
+                print("Attempting unified template export...")
                 success = self._try_word_template_export(export_path)
-                print(f"Word template export returned: {success}")
+                print(f"Unified template export returned: {success}")
                 if success:
-                    print("✓ Word template export successful - returning True")
+                    print("✓ Unified template export successful - returning True")
                     return True
-                print("⚠ Word template export failed, trying RTF fallback...")
+                print("⚠ Unified template export failed")
             except ImportError as e:
-                print(f"❌ Word template system import failed: {e}")
+                print(f"❌ Unified template system import failed: {e}")
             except Exception as e:
-                print(f"❌ Word template system error: {e}")
+                print(f"❌ Unified template system error: {e}")
                 import traceback
                 traceback.print_exc()
             
-            # Fallback to RTF template system
-            print("📄 Falling back to RTF template system...")
-            from export.word_exporter import generate_quote
-            
-            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-            part_number = self.current_quote_data.get('original_part_number', '')
-            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-            
-            # Get customer information
-            customer_name = self.company_var.get() or "Customer Name"
-            contact_name = self.contact_person_var.get() or "Contact Person"
-            
-            # Use the current quote number (should be set by now)
-            quote_number = self.current_quote_number or f"Q-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
-            
-            # Get pricing info
-            unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
-            if unit_price and unit_price > 0:
-                unit_price = f"{unit_price:.2f}"
-            else:
-                unit_price = "Please Contact"
-            
-            # Debug output
-            print(f"RTF Export Debug:")
-            print(f"  Model: {model}")
-            print(f"  Part Number: {part_number}")
-            print(f"  Customer: {customer_name}")
-            print(f"  Export Path: {export_path}")
-            print(f"  Unit Price: {unit_price}")
-            
-            # Generate the quote using RTF template system
-            success = generate_quote(
-                model=model,
-                customer_name=customer_name,
-                attention_name=contact_name,
-                quote_number=quote_number,
-                part_number=part_number,
-                unit_price=unit_price,
-                supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
-                probe_length=str(self.current_quote_data.get('probe_length', 12)),
-                output_path=export_path,
-                # Additional specs from parsed data
-                insulator_material=self._get_insulator_material_name(),
-                probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
-                max_temperature=f"{self.current_quote_data.get('max_temperature', 450)} F",
-                max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI"
-            )
-            
-            print(f"RTF export success: {success}")
-            if success and os.path.exists(export_path):
-                print(f"File created successfully: {os.path.getsize(export_path)} bytes")
-            else:
-                print(f"File not found after export: {export_path}")
-            
-            return success
+            # If unified system fails, show error but don't fall back to old systems
+            print("❌ Unified template system failed - no fallback available")
+            return False
             
         except Exception as e:
-            print(f"RTF template export failed: {e}")
+            print(f"Unified template export failed: {e}")
             import traceback
             traceback.print_exc()
             return False
     
     def _try_word_template_export(self, export_path: str) -> bool:
-        """Try exporting using the Word template system with template variables"""
+        """Try exporting using the unified template system with master template"""
         try:
-            print("🔧 Starting Word template export...")
-            from export.word_template_processor import generate_word_quote
-            print("✓ generate_word_quote imported successfully")
+            print("🔧 Starting unified template export...")
+            from export.unified_templates.unified_template_processor import generate_unified_quote
+            print("✓ generate_unified_quote imported successfully")
             
             # Ensure we have quote data
             if not self.current_quote_data:
                 print("❌ No quote data available")
                 return False
             print("✓ Quote data available")
-            
-            # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-            part_number = self.current_quote_data.get('original_part_number', '')
-            model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
             
             # Get customer information
             customer_name = self.company_var.get() or "Customer Name"
@@ -964,57 +834,54 @@ class MainWindow:
             # Use the current quote number (should be set by now)
             quote_number = self.current_quote_number or f"Q-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
             
-            # Get pricing info
-            unit_price = self.current_quote_data.get('total_price') or self.current_quote_data.get('base_price') or 0.0
-            if unit_price and unit_price > 0:
-                unit_price = f"{unit_price:.2f}"
-            else:
-                unit_price = "Please Contact"
+            # Prepare quote items for unified system
+            quote_items = []
+            
+            # Add main item
+            main_item = {
+                'part_number': self.current_quote_data.get('original_part_number', ''),
+                'quantity': int(self.main_qty_var.get() or 1),
+                'type': 'main',
+                'data': self.current_quote_data
+            }
+            quote_items.append(main_item)
+            
+            # Add any spare parts from quote tree
+            for item in self.quote_items:
+                if item.get('type') != 'main':  # Skip main item as it's already added
+                    quote_items.append(item)
             
             # Debug output
-            print(f"Word Template Export Debug:")
-            print(f"  Model: {model}")
-            print(f"  Part Number: {part_number}")
+            print(f"Unified Template Export Debug:")
+            print(f"  Quote Items Count: {len(quote_items)}")
             print(f"  Customer: {customer_name}")
             print(f"  Export Path: {export_path}")
-            print(f"  Unit Price: {unit_price}")
             print(f"  Employee Name: {employee_name}")
             print(f"  Employee Phone: {employee_phone}")
             
-            # Generate the quote using Word template system
-            print("🚀 Calling generate_word_quote with parameters:")
-            print(f"   Model: {model}")
+            # Generate the quote using unified template system
+            print("🚀 Calling generate_unified_quote with parameters:")
+            print(f"   Quote Items: {len(quote_items)} items")
             print(f"   Customer: {customer_name}")
-            print(f"   Part Number: {part_number}")
+            print(f"   Quote Number: {quote_number}")
             print(f"   Output Path: {export_path}")
             
-            success = generate_word_quote(
-                model=model,
+            success = generate_unified_quote(
+                quote_items=quote_items,
                 customer_name=customer_name,
                 attention_name=contact_name,
                 quote_number=quote_number,
-                part_number=part_number,
-                unit_price=unit_price,
-                supply_voltage=self.current_quote_data.get('voltage', '115VAC'),
-                probe_length=str(self.current_quote_data.get('probe_length', 12)),
                 output_path=export_path,
-                # Additional specs from parsed data
-                insulator=self.current_quote_data.get('insulator', ''),
-                insulator_material=self._get_insulator_material_name(),
-                insulator_length=f"{self.current_quote_data.get('base_insulator_length', 4)}\"",
-                probe_material=self.current_quote_data.get('probe_material_name', '316SS'),
-                probe_material_name=self.current_quote_data.get('probe_material_name', '316 Stainless Steel'),
-                probe_diameter=self.current_quote_data.get('probe_diameter', '½"'),
-                max_temperature=f"{self.current_quote_data.get('max_temperature', 450)}°F",
-                max_pressure=f"{self.current_quote_data.get('max_pressure', 300)} PSI",
-                # Employee info
-                employee_name=employee_name,
-                employee_phone=employee_phone,
-                employee_email=employee_email,
-                option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
+                employee_info={
+                    'name': employee_name,
+                    'phone': employee_phone,
+                    'email': employee_email
+                },
+                # Additional variables that might be needed
+                lead_time=self.lead_time_var.get() if hasattr(self, 'lead_time_var') else 'In Stock'
             )
             
-            print(f"Word template export success: {success}")
+            print(f"Unified template export success: {success}")
             if success and os.path.exists(export_path):
                 print(f"File created successfully: {os.path.getsize(export_path)} bytes")
             else:
@@ -1022,7 +889,7 @@ class MainWindow:
             
             return success
         except Exception as e:
-            print(f"RTF template export failed: {e}")
+            print(f"Unified template export failed: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -1911,43 +1778,68 @@ Length pricing is automatically calculated for probe assemblies.
                 if filename:
                     print(f"Export filename selected: {filename}")
                     
-                    # Try to use Word template system for multi-item or single item export
-                    success = False
+                    # Get customer information
+                    customer_name = self.company_var.get() or "Customer Name"
+                    contact_name = self.contact_person_var.get() or "Contact Person"
+                    
+                    # Get employee information for template
+                    employee_name = ""
+                    employee_phone = ""
+                    employee_email = ""
+                    if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
+                        emp = self.selected_employee_info
+                        employee_name = f"{emp['first_name']} {emp['last_name']}"
+                        employee_phone = emp.get('work_phone', '')
+                        employee_email = emp.get('work_email', '')
+                        print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
+                    else:
+                        print("⚠ No employee selected, using default contact info")
+                    
+                    # Use the generated quote number (guaranteed to exist at this point)
+                    assert self.current_quote_number is not None
+                    quote_number = self.current_quote_number
+                    
+                    # Determine if this is a multi-item quote
+                    is_multi_item = len(self.quote_items) > 1
                     main_items = [item for item in self.quote_items if item.get('type') == 'main']
                     
-                    if main_items:
-                        # Get customer information
-                        customer_name = self.company_var.get() or "Customer Name"
-                        contact_name = self.contact_person_var.get() or "Contact Person"
+                    # Try to use unified template system for both single and multi-item quotes
+                    print(f"🚀 Unified template export with {len(self.quote_items)} items")
+                    
+                    success = False
+                    
+                    try:
+                        from export.unified_templates.unified_template_processor import generate_unified_quote
                         
-                        # Get employee information for template
-                        employee_name = ""
-                        employee_phone = ""
-                        employee_email = ""
-                        if hasattr(self, 'selected_employee_info') and self.selected_employee_info:
-                            emp = self.selected_employee_info
-                            employee_name = f"{emp['first_name']} {emp['last_name']}"
-                            employee_phone = emp.get('work_phone', '')
-                            employee_email = emp.get('work_email', '')
-                            print(f"🔧 Using employee: {employee_name} ({employee_phone}, {employee_email})")
-                        else:
-                            print("⚠ No employee selected, using default contact info")
+                        # Prepare employee info
+                        employee_info = {
+                            'name': employee_name,
+                            'phone': employee_phone,
+                            'email': employee_email
+                        }
                         
-                        # Use the generated quote number (guaranteed to exist at this point)
-                        assert self.current_quote_number is not None
-                        quote_number = self.current_quote_number
+                        success = generate_unified_quote(
+                            quote_items=self.quote_items,
+                            customer_name=customer_name,
+                            attention_name=contact_name,
+                            quote_number=quote_number,
+                            output_path=filename,
+                            employee_info=employee_info,
+                            lead_time=self.lead_time_var.get()
+                        )
+                        print(f"✅ Unified template export success: {success}")
                         
-                        # Determine if this is a multi-item quote
-                        is_multi_item = len(self.quote_items) > 1
+                    except Exception as e:
+                        print(f"❌ Unified template export failed: {e}")
+                        import traceback
+                        traceback.print_exc()
                         
+                        # Fallback to old system if unified fails
                         if is_multi_item:
-                            print(f"🚀 Multi-item quote export with {len(self.quote_items)} items")
-                            
-                            # Try multi-item Word template export using composed approach
+                            print("🔄 Falling back to composed multi-item export...")
                             try:
                                 from export.word_template_processor import generate_composed_multi_item_quote
                                 
-                                # Prepare employee info
                                 employee_info = {
                                     'name': employee_name,
                                     'phone': employee_phone,
@@ -1962,97 +1854,47 @@ Length pricing is automatically calculated for probe assemblies.
                                     output_path=filename,
                                     employee_info=employee_info
                                 )
-                                print(f"✅ Composed multi-item Word template export success: {success}")
+                                print(f"✅ Fallback multi-item export success: {success}")
                                 
-                            except Exception as e:
-                                print(f"❌ Composed multi-item Word template export failed: {e}")
-                                import traceback
-                                traceback.print_exc()
+                            except Exception as fallback_e:
+                                print(f"❌ Fallback multi-item export also failed: {fallback_e}")
                                 success = False
+                            else:
+                                print("🔄 Falling back to single-item export...")
+                                try:
+                                    from export.word_template_processor import generate_word_quote
+                                    
+                                    main_item = main_items[0]
+                                    part_number = main_item.get('part_number', '')
+                                    quote_data = main_item.get('data', {})
+                                    
+                                    model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
+                                    unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
+                                    unit_price_str = f"{unit_price:.2f}" if unit_price > 0 else "Please Contact"
+                                    
+                                    success = generate_word_quote(
+                                        model=model,
+                                        customer_name=customer_name,
+                                        attention_name=contact_name,
+                                        quote_number=quote_number,
+                                        part_number=part_number,
+                                        unit_price=unit_price_str,
+                                        supply_voltage=quote_data.get('voltage', '115VAC'),
+                                        probe_length=str(quote_data.get('probe_length', 12)),
+                                        output_path=filename,
+                                        employee_name=employee_name,
+                                        employee_phone=employee_phone,
+                                        employee_email=employee_email,
+                                        lead_time=self.lead_time_var.get(),
+                                        **quote_data
+                                    )
+                                    print(f"✅ Fallback single-item export success: {success}")
+                                    
+                                except Exception as fallback_e:
+                                    print(f"❌ Fallback single-item export also failed: {fallback_e}")
+                                    success = False
                         
-                        else:
-                            print(f"🚀 Single item quote export")
-                            
-                            # Use the first main item for single-item template export
-                            main_item = main_items[0]
-                            part_number = main_item.get('part_number', '')
-                            print(f"Using main item for template: {part_number}")
-                            
-                            # Extract data properly from the quote item
-                            quote_data = main_item.get('data', {})
-                            print(f"Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
-                            
-                            # Set current_quote_data temporarily for the export
-                            original_quote_data = self.current_quote_data
-                            self.current_quote_data = quote_data
-                            
-                            # Try single-item Word template export
-                            try:
-                                from export.word_template_processor import generate_word_quote
-                                
-                                # Extract base model from part number (e.g., LS2000-115VAC-S-10" -> LS2000)
-                                model = part_number.split('-')[0] if '-' in part_number else part_number[:6]
-                                print(f"🔧 Extracted model: '{model}' from part: '{part_number}'")
-                                
-                                # Get pricing info
-                                unit_price = quote_data.get('total_price') or quote_data.get('base_price') or 0.0
-                                if unit_price and unit_price > 0:
-                                    unit_price = f"{unit_price:.2f}"
-                                else:
-                                    unit_price = "Please Contact"
-                                
-                                print(f"🚀 Word template export with:")
-                                print(f"   Model: '{model}'")
-                                print(f"   Part Number: '{part_number}'")
-                                print(f"   Customer: '{customer_name}'")
-                                print(f"   Unit Price: '{unit_price}'")
-                                
-                                # Generate the quote using Word template system
-                                success = generate_word_quote(
-                                    model=model,
-                                    customer_name=customer_name,
-                                    attention_name=contact_name,
-                                    quote_number=quote_number,
-                                    part_number=part_number,
-                                    unit_price=unit_price,
-                                    supply_voltage=quote_data.get('voltage', '115VAC'),
-                                    probe_length=str(quote_data.get('probe_length', 12)),
-                                    output_path=filename,
-                                    # Additional specs from parsed data
-                                    insulator=quote_data.get('insulator', ''),
-                                    insulator_material=self._extract_insulator_material_name(quote_data),
-                                    insulator_length=f"{quote_data.get('base_insulator_length', 4)}\"",
-                                    probe_material=quote_data.get('probe_material_name', '316SS'),
-                                    max_temperature=f"{quote_data.get('max_temperature', 450)}°F",
-                                    max_pressure=f"{quote_data.get('max_pressure', 300)} PSI",
-                                    output_type=quote_data.get('output_type', '10 Amp SPDT Relay'),
-                                    process_connection_size=f"{quote_data.get('pc_size', '¾')}\"",
-                                    pc_type=quote_data.get('pc_type', 'NPT'),
-                                    pc_size=quote_data.get('pc_size', '¾"'),
-                                    pc_matt=quote_data.get('pc_matt', 'SS'),
-                                    pc_rate=quote_data.get('pc_rate'),
-                                    length_adder=quote_data.get('length_adder', 0.0),
-                                    adder_per=quote_data.get('adder_per', 'none'),
-                                    # Lead time from GUI selection
-                                    lead_time=self.lead_time_var.get(),
-                                    # Employee information
-                                    employee_name=employee_name,
-                                    employee_phone=employee_phone,
-                                    employee_email=employee_email,
-                                    option_codes=[opt.split(':')[0] if ':' in opt else opt for opt in self.current_quote_data.get('options', [])],
-                                )
-                                print(f"✅ Word template export success: {success}")
-                                
-                            except Exception as e:
-                                print(f"❌ Word template export failed: {e}")
-                                import traceback
-                                traceback.print_exc()
-                                success = False
-                            
-                            # Restore original quote data
-                            self.current_quote_data = original_quote_data
-                        
-                        # If Word template failed, try RTF fallback
+                        # If unified system fails, try RTF fallback
                         if not success:
                             print("📄 Trying RTF template fallback...")
                             success = self._try_rtf_template_export(filename)

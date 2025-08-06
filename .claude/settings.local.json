@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(python test:*)",
+      "Bash(python:*)",
+      "Bash(py:*)",
+      "Bash(where python)",
+      "Bash(venvScriptspython.exe test_unified_system.py:*)",
+      "Bash(.venvScriptspython.exe test_unified_system.py)",
+      "Bash(run_python.bat test_unified_system.py)",
+      "Bash(copy unified_template_processor.py unified_template_processor_backup.py)",
+      "Bash(copy unified_template_processor_fixed.py unified_template_processor.py)",
+      "Bash(cp:*)"
+    ],
+    "deny": []
+  }
+}

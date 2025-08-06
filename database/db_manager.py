@@ -877,9 +877,13 @@ class DatabaseManager:
         """
         Generate quote number in format: CustomerName UserInitialsMMDDYYLetter (e.g., ACME ZF071925A)
         
+        The letter at the end is dependent on the company, user initials, and date.
+        Letters increment for the same company on the same day by the same user.
+        Letters reset to 'A' for a new company on the same day by the same user.
+        
         Args:
             user_initials: User's initials (will be converted to uppercase)
-            customer_name: Customer name to prefix the quote number (optional)
+            customer_name: Customer name to prefix the quote number (required for proper letter sequencing)
             
         Returns:
             Generated quote number
@@ -896,18 +900,27 @@ class DatabaseManager:
         # Base quote number pattern (without customer prefix for database lookup)
         base_quote_number = f"{user_initials}{date_str}"
         
-        # Find existing quotes for this user/date combination
-        query = """
-        SELECT quote_number FROM quotes 
-        WHERE quote_number LIKE ? 
-        ORDER BY quote_number DESC
-        """
-        
-        existing_quotes = self.execute_query(query, (f"%{base_quote_number}%",))
+        # Find existing quotes for this user/date/company combination
+        if customer_name:
+            # Look for quotes with the same customer name, user initials, and date
+            query = """
+            SELECT quote_number FROM quotes 
+            WHERE customer_name = ? AND quote_number LIKE ? 
+            ORDER BY quote_number DESC
+            """
+            existing_quotes = self.execute_query(query, (customer_name, f"%{base_quote_number}%"))
+        else:
+            # Fallback to old behavior if no customer name provided
+            query = """
+            SELECT quote_number FROM quotes 
+            WHERE quote_number LIKE ? 
+            ORDER BY quote_number DESC
+            """
+            existing_quotes = self.execute_query(query, (f"%{base_quote_number}%",))
         
         # Determine next letter
         if not existing_quotes:
-            # First quote of the day
+            # First quote of the day for this company/user combination
             next_letter = 'A'
         else:
             # Get the last quote's letter and increment

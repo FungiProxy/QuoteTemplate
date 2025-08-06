@@ -20,6 +20,25 @@ from template_fileds import QuoteTemplateFields, TEMPLATE_PATTERNS
 
 logger = logging.getLogger(__name__)
 
+def _extract_display_quote_number(quote_number: str) -> str:
+    """
+    Extract display quote number without customer name prefix.
+    
+    Args:
+        quote_number: Full quote number (e.g., "ACME ZF071925A")
+        
+    Returns:
+        Display quote number without customer name (e.g., "ZF071925A")
+    """
+    # Split by space to separate customer name from the rest
+    parts = quote_number.split(' ', 1)
+    if len(parts) > 1:
+        # Return the part after the first space (employee initials + date + letter)
+        return parts[1]
+    else:
+        # If no space found, return the original quote number
+        return quote_number
+
 class RTFTemplateProcessor:
     """
     Processes RTF templates by replacing placeholders with actual values.
@@ -99,9 +118,10 @@ class RTFTemplateProcessor:
         # Replace ATTN field (preserve formatting)
         rtf_content = re.sub(r'(\bATTN:\s*)', f'\\1{field_dict["ATTN"]}', rtf_content)
         
-        # Replace Quote number variants
+        # Replace Quote number variants with display quote number (without customer name)
+        display_quote_number = _extract_display_quote_number(field_dict["QUOTE_NUMBER"])
         for pattern in [r'\bQuote #\s*', r'\bQuote#\s*']:
-            rtf_content = re.sub(pattern, f'Quote # {field_dict["QUOTE_NUMBER"]}', rtf_content)
+            rtf_content = re.sub(pattern, f'Quote # {display_quote_number}', rtf_content)
         
         return rtf_content
     

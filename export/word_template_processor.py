@@ -519,6 +519,25 @@ def _parse_insulator_for_template(kwargs: Dict[str, Any]) -> Dict[str, str]:
         'temp_rating': temp_rating
     }
 
+def _extract_display_quote_number(quote_number: str) -> str:
+    """
+    Extract display quote number without customer name prefix.
+    
+    Args:
+        quote_number: Full quote number (e.g., "ACME ZF071925A")
+        
+    Returns:
+        Display quote number without customer name (e.g., "ZF071925A")
+    """
+    # Split by space to separate customer name from the rest
+    parts = quote_number.split(' ', 1)
+    if len(parts) > 1:
+        # Return the part after the first space (employee initials + date + letter)
+        return parts[1]
+    else:
+        # If no space found, return the original quote number
+        return quote_number
+
 def generate_word_quote(
     model: str,
     customer_name: str,
@@ -569,6 +588,8 @@ def generate_word_quote(
             'attention_name': attention_name,
             'contact_name': attention_name,  # Alternative name
             'quote_number': quote_number,
+            # Create display quote number without customer name prefix
+            'display_quote_number': _extract_display_quote_number(quote_number),
             
             # Product information
             'part_number': part_number,
@@ -987,7 +1008,7 @@ def generate_composed_multi_item_quote(
         header_info.add_run(attention_name)
         
         header_info.add_run(f"\nQuote Number: ").bold = True
-        header_info.add_run(quote_number)
+        header_info.add_run(_extract_display_quote_number(quote_number))
         
         if item_count > 1:
             header_info.add_run(f"\nTotal Items: ").bold = True
